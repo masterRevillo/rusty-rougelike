@@ -38,6 +38,8 @@ struct Tcod {
     fov: FovMap
 }
 
+type Map = Vec<Vec<Tile>>;
+
 struct Game {
     map: Map
 }
@@ -69,8 +71,8 @@ impl Object {
     }
 
     // draw self onto given console
-    pub fn draw(&self, con: &mut dyn Console) {
-        con.set_default_foreground(self.color);
+    pub fn draw(&self, con: &mut dyn Console) {             // dyn: Console is a "trait", not a struct. dyn is basically used to announce that its a trait
+        con.set_default_foreground(self.color);                  // pointers to traits are double the size of pointers to structs, so there some implications with using it
         con.put_char(self.x, self.y, self.char, BackgroundFlag::None)
     }
 
@@ -111,9 +113,9 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>) {
 
 
 
-#[derive(Clone, Copy, Debug)]
-struct Tile {
-    blocked: bool,
+#[derive(Clone, Copy, Debug)]   // This allows the struct to implement some default behaviors provided by Rust. They are called "traits", but evidently they can be thought of like interfaces
+struct Tile {                   // Debug lets us print out the value of the struct; Clone and Copy overrides default assignment strategy of "moving"
+    blocked: bool,             
     block_sight: bool,
     explored: bool,
 }
@@ -197,10 +199,9 @@ fn create_v_tunnel(y1: i32, y2: i32, x: i32, map: &mut Map) {
     }
 }
 
-type Map = Vec<Vec<Tile>>;
-
 fn make_map(objects :&mut Vec<Object>) -> Map {
-    let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
+    let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];    // vec! is a shorthand macro that initializes the Vec and fills it with the specified value
+                                                                                        // the syntax is vec![value_to_fill, number_of_entries]
     
     let mut rooms = vec![];
 
@@ -213,7 +214,7 @@ fn make_map(objects :&mut Vec<Object>) -> Map {
 
         let new_room = Rect::new(x, y, w, h);
 
-        let failed = rooms.iter().any(|other_room| new_room.intersects_with(other_room));
+        let failed = rooms.iter().any(|other_room| new_room.intersects_with(other_room)); // content of .any() is an anonymous function
 
         if !failed {
             create_room(new_room, &mut map);
@@ -286,7 +287,7 @@ fn handle_keys(tcod: &mut Tcod, objects: &mut [Object], game: &Game) -> bool {
 
     let key = tcod.root.wait_for_keypress(true);
     match key {
-        Key {code: Enter, alt: true, ..} => {
+        Key {code: Enter, alt: true, ..} => {               // the 2 dots signify that we dont care about the other values of Key. Without them, the code wouldnt compile until all values were supplied
             let fullscreen = tcod.root.is_fullscreen();
             tcod.root.set_fullscreen(!fullscreen);
         }
@@ -319,7 +320,6 @@ fn main() {
     };
 
     let player = Object::new(0, 0, '@', WHITE, "player", true);
-    player.alive = true;
     
     let mut objects = vec![player];
 
@@ -351,7 +351,7 @@ fn main() {
         
         let player = &mut objects[PLAYER];
         previous_player_position = (player.x, player.y);
-        let exit = handle_keys(&mut tcod, objects, &game);
+        let exit = handle_keys(&mut tcod, &mut objects, &game);
         if exit {
             break;
         }
