@@ -1,5 +1,6 @@
 use tcod::colors::*;
 use tcod::console::*;
+use tcod::input::{self, Event, Key, Mouse};
 use tcod::map::{FovAlgorithm, Map as FovMap}; //imports the FOV Map object, but renames
                                                 // so it doesnt clash with our Map
 use std::cmp;
@@ -11,7 +12,15 @@ const SCREEN_HEIGHT: i32 = 75;
 const LIMIT_FPS: i32 = 20;
 
 const MAP_WIDTH: i32 = 80;
-const MAP_HEIGHT: i32 = 70;
+const MAP_HEIGHT: i32 = 68;
+
+const BAR_WIDTH: i32 = 20;
+const PANEL_HEIGHT: i32 = 7;
+const PANEL_Y: i32 = SCREEN_HEIGHT - PANEL_HEIGHT;
+
+const MSG_X: i32 = BAR_WIDTH + 2;
+const MSG_WIDTH: i32 = SCREEN_WIDTH - BAR_WIDTH - 2;
+const MSG_HEIGHT: usize = PANEL_HEIGHT as usize - 1;
 
 const PLAYER: usize = 0;
 
@@ -35,13 +44,17 @@ const MAX_ROOM_MONSTERS: i32 = 3;
 struct Tcod {
     root: Root,
     con: Offscreen,
-    fov: FovMap
+    panel: Offscreen,
+    fov: FovMap,
+    key: Key,
+    mouse: Mouse
 }
 
 type Map = Vec<Vec<Tile>>;
 
 struct Game {
-    map: Map
+    map: Map,
+    messages: Messages,
 }
 
 /// This is a generic object: the player, a monster, an item, the stairs...
@@ -95,7 +108,7 @@ impl Object {
         ((dx.pow(2) + dy.pow(2)) as f32).sqrt()
     }
 
-    pub fn take_damage(&mut self, damage: i32) {
+    pub fn take_damage(&mut self, damage: i32, game: &mut Game) {
         if let Some(fighter) = self.fighter.as_mut() {
             if damage > 0 {
                 fighter.hp -= damage;
@@ -104,30 +117,30 @@ impl Object {
         if let Some(fighter) = self.fighter {
             if fighter.hp <= 0 {
                 self.alive = false;
-                fighter.on_death.callback(self);
+                fighter.on_death.callback(self, game);
             }
         }
     }
 
-    pub fn attack(&mut self, target: &mut Object) {
+    pub fn attack(&mut self, target: &mut Object, game: &mut Game) {
         let damage = self.fighter.map_or(0, |f| f.power) - target.fighter.map_or(0, |f| f.defense);
         if damage > 0 {
-            println!( "{} attacks {} for {} hit points", self.name, target.name, damage);
-            target.take_damage(damage);
+            game.messages.add(format!("{} attacks {} for {} hit points", self.name, target.name, damage), WHITE);
+            target.take_damage(damage, game);
         } else {
-            println!("{} attacks {}, but it has no effect", self.name, target.name);
+            game.messages.add(format!("{} attacks {}, but it has no effect", self.name, target.name), WHITE);
         }
     }
 }
 
-fn player_death(player: &mut Object) {
-    println!("You died!");
+fn player_death(player: &mut Object, game: &mut Game) {
+    game.messages.add("You died!", RED);
     player.char = '%';
     player.color = DARK_RED;
 }
 
-fn monster_death(monster: &mut Object) {
-    println!("{} died", monster.name);
+fn monster_death(monster: &mut Object, game: &mut Game) {
+    game.messages.add(format!("{} died", monster.name), ORANGE);
     monster.char = '%';
     monster.color = DARK_RED;
     monster.blocks = false;
@@ -154,13 +167,13 @@ enum DeathCallback {
 }
 
 impl DeathCallback {
-    fn callback(self, object: &mut Object) {
+    fn callback(self, object: &mut Object, game: &mut Game) {
         use DeathCallback::*;
-        let callback: fn(&mut Object) = match self {
+        let callback = match self {
             Player => player_death,
             Monster => monster_death,
         };
-        callback(object);
+        callback(object, game);
     }
 }
 
@@ -176,7 +189,7 @@ fn move_by(id: usize, dx: i32, dy: i32, map: &Map, objects: &mut [Object]) {
     }
 }
 
-fn player_move_or_attack(dx: i32, dy: i32, game: &Game, objects: &mut [Object]) {
+fn player_move_or_attack(dx: i32, dy: i32, game: &mut Game, objects: &mut [Object]) {
     let x = objects[PLAYER].x + dx;
     let y = objects[PLAYER].y + dy;
 
@@ -184,7 +197,7 @@ fn player_move_or_attack(dx: i32, dy: i32, game: &Game, objects: &mut [Object]) 
     match target_id {
         Some(target_id) => {
             let (player, target) = mut_two(PLAYER, target_id, objects);
-            player.attack(target);
+            player.attack(target, game);
         }
         None => {
             move_by(PLAYER, dx, dy, &game.map, objects)
@@ -233,7 +246,7 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>) {
     }
 }
 
-fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &Game, objects: &mut [Object]) {
+fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &mut Game, objects: &mut [Object]) {
     // a basic ai takes a turn. If you can see it, it can see you
     let (monster_x, monster_y) = objects[monster_id].pos();
     if tcod.fov.is_in_fov(monster_x, monster_y) {
@@ -244,7 +257,7 @@ fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &Game, objects: &mut [Obje
         } else {
             // close enough to start a war
             let (monster, player) = mut_two(monster_id, PLAYER, objects);
-            monster.attack(player);
+            monster.attack(player, game);
         }
     }
 }
@@ -398,6 +411,26 @@ fn make_map(objects :&mut Vec<Object>) -> Map {
     map
 }
 
+struct Messages {
+    messages: Vec<(String, Color)>
+}
+
+impl Messages {
+    pub fn new() -> Self {
+        Self {messages: vec![]}
+    }
+
+    pub fn add<T: Into<String>>(&mut self, message: T, color: Color) {
+        self.messages.push((message.into(), color))
+    }
+
+    // returns an `impl Trait`. basically, it allows you to specify a return type without explicitly describing the type
+    // The actual return type just needs to implement the trait specified.
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &(String, Color)> {
+        self.messages.iter()
+    }    
+}
+
 fn render_all(tcod: &mut Tcod, game: &mut Game, objects: &[Object], fov_recompute: bool) {
     if fov_recompute {
         let player = &objects[PLAYER];
@@ -427,17 +460,37 @@ fn render_all(tcod: &mut Tcod, game: &mut Game, objects: &[Object], fov_recomput
             }
         }
     }
-    // player stats
+    // reset GUI panel
     tcod.root.set_default_foreground(WHITE);
-    if let Some(fighter) = objects[PLAYER].fighter {
-        tcod.root.print_ex(
-            1, 
-            SCREEN_HEIGHT -2, 
-            BackgroundFlag::None, 
-            TextAlignment::Left, 
-            format!("HP: {}/{}", fighter.hp, fighter.max_hp)
-        );
+    tcod.panel.set_default_background(BLACK);
+    tcod.panel.clear();
+    // display player stats
+    let hp = objects[PLAYER].fighter.map_or(0, |f| f.hp);
+    let max_hp = objects[PLAYER].fighter.map_or(0, |f| f.max_hp);
+    render_bar(&mut tcod.panel, 1, 1, BAR_WIDTH, "HP", hp, max_hp, LIGHT_GREEN, DARKER_RED);
+    // get names at mouse location
+    tcod.panel.set_default_foreground(LIGHT_GREY);
+    tcod.panel.print_ex(1, 0, BackgroundFlag::None, TextAlignment::Left, get_names_under_mouse(tcod.mouse, objects, &tcod.fov));
+    // display message log
+    let mut y = MSG_HEIGHT as i32;
+    for &(ref msg, color) in game.messages.iter().rev() {     // iterate through the messages in reverse order
+        let msg_height = tcod.panel.get_height_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+        y -= msg_height;
+        if y < 0 {
+            break;
+        }
+        tcod.panel.set_default_foreground(color);
+        tcod.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
     }
+    blit(
+        &tcod.panel, 
+        (0,0), 
+        (SCREEN_WIDTH, PANEL_HEIGHT), 
+        &mut tcod.root, 
+        (0, PANEL_Y), 
+        1.0, 1.0
+    );
+    // blit the map
     blit(
         &tcod.con,
         (0, 0),
@@ -449,14 +502,42 @@ fn render_all(tcod: &mut Tcod, game: &mut Game, objects: &[Object], fov_recomput
     );
 }
 
-fn handle_keys(tcod: &mut Tcod, objects: &mut [Object], game: &Game) -> PlayerAction {
-    use tcod::input::Key;
+fn render_bar(
+    panel: &mut Offscreen,
+    x: i32,
+    y: i32,
+    total_width: i32,
+    name: &str,
+    value: i32,
+    maximum: i32,
+    bar_color: Color,
+    back_color: Color,
+) {
+    let bar_width = (value as f32 / maximum as f32 * total_width as f32) as i32;
+
+    // render the background
+    panel.set_default_background(back_color);
+    panel.rect(x, y, total_width, 1, false, BackgroundFlag::Screen);
+
+    // render the bar on top
+    panel.set_default_background(bar_color);
+    if bar_width > 0 {
+        panel.rect(x, y, bar_width, 1, false, BackgroundFlag::Screen);
+    }
+
+    // then some text with values
+    panel.set_default_foreground(DARKER_SEPIA);
+    panel.print_ex(
+        x + total_width / 2 , y, BackgroundFlag::None, TextAlignment::Center, &format!("{}: {}/{}", name, value, maximum)
+    )
+}
+
+fn handle_keys(tcod: &mut Tcod, objects: &mut [Object], game: &mut Game) -> PlayerAction {
     use tcod::input::KeyCode::*;
     use PlayerAction::*;
 
-    let key = tcod.root.wait_for_keypress(true);
     let player_alive = objects[PLAYER].alive;
-    match (key, key.text(), player_alive) {
+    match (tcod.key, tcod.key.text(), player_alive) {
         (Key {code: Enter, alt: true, ..}, _, _,) => {               // the 2 dots signify that we dont care about the other values of Key. Without them, the code wouldnt compile until all values were supplied
             let fullscreen = tcod.root.is_fullscreen();
             tcod.root.set_fullscreen(!fullscreen);
@@ -486,6 +567,17 @@ fn handle_keys(tcod: &mut Tcod, objects: &mut [Object], game: &Game) -> PlayerAc
 
 }
 
+fn get_names_under_mouse(mouse: Mouse, objects: &[Object], fov_map: &FovMap) -> String {
+    let (x, y) = (mouse.cx as i32, mouse.cy as i32);
+    let names = objects
+        .iter()
+        .filter(|obj| obj.pos() == (x, y) && fov_map.is_in_fov(obj.x, obj.y))
+        .map(|obj| obj.name.clone())
+        .collect::<Vec<_>>();
+
+    names.join(", ")
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum PlayerAction {
     TookTurn,
@@ -506,7 +598,10 @@ fn main() {
     let mut tcod = Tcod {
         root, 
         con: Offscreen::new(MAP_WIDTH, MAP_HEIGHT),
+        panel: Offscreen::new(SCREEN_WIDTH, PANEL_HEIGHT),
         fov: FovMap::new(MAP_WIDTH, MAP_HEIGHT),
+        key: Default::default(),                    // default is a trait that can be implemented that gives an object default values
+        mouse: Default::default()
     };
 
     let mut player = Object::new(0, 0, '@', WHITE, "player", true);
@@ -522,7 +617,8 @@ fn main() {
     let mut objects = vec![player];
 
     let mut game = Game {
-        map: make_map(&mut objects)
+        map: make_map(&mut objects),
+        messages: Messages::new(),
     };
 
     for y in 0..MAP_HEIGHT {
@@ -538,25 +634,36 @@ fn main() {
 
     let mut previous_player_position = (-1, -1);
 
+    game.messages.add(
+        "Welcome to the Halls of Ruzt - there's no time to change your mind...", RED
+    );
+
     while !tcod.root.window_closed() {
         // clear offscreen console before drawing anything
         tcod.con.clear();
+
+        match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
+            Some((_, Event::Mouse(m))) => tcod.mouse = m,
+            Some((_, Event::Key(k))) => tcod.key = k,
+            _ => tcod.key = Default::default(),
+        }
         
         let fov_recompute = previous_player_position != (objects[PLAYER].pos());
+        
         render_all(&mut tcod, &mut game, &objects, fov_recompute);
         
         tcod.root.flush();
         
         let player = &mut objects[PLAYER];
         previous_player_position = player.pos();
-        let player_action = handle_keys(&mut tcod, &mut objects, &game);
+        let player_action = handle_keys(&mut tcod, &mut objects, &mut game);
         if player_action == PlayerAction::Exit {
             break;
         }
         if objects[PLAYER].alive && player_action != PlayerAction::DidntTakeTurn {
             for id in 0..objects.len() {
                 if objects[id].ai.is_some() {
-                    ai_take_turn(id, &tcod, &game, &mut objects)
+                    ai_take_turn(id, &tcod, &mut game, &mut objects)
                 }
             }
             // old logic, kept for pointer comparison syntax:
