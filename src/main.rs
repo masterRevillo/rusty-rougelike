@@ -9,6 +9,7 @@ use std::io::{Read, Write};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use rand::Rng;
+use rand::distributions::{IndependentSample, Weighted, WeightedChoice};
 
 mod namegen;
 
@@ -51,8 +52,6 @@ const TORCH_RADIUS: i32 = 10;
 const ROOM_MAX_SIZE: i32 = 10;
 const ROOM_MIN_SIZE: i32 = 6;
 const MAX_ROOMS: i32 = 32;
-const MAX_ROOM_MONSTERS: i32 = 3;
-const MAX_ROOM_ITEMS: i32 = 2;
 
 //parameters for items
 const HEAL_AMOUNT: i32 = 4;
@@ -87,6 +86,39 @@ struct Game {
     inventory: Vec<Object>,
     dungeon_level: u32,
 }
+
+struct Transition {
+    level: u32,
+    value: u32,
+}
+
+const MAX_MONSTERS_TRANSITION: &[Transition] = &[
+    Transition { level: 1, value: 2 },
+    Transition { level: 4, value: 3 },
+    Transition { level: 6, value: 5 },
+];
+
+const TROLL_CHANCE_TRANSITION: &[Transition] = &[
+    Transition{ level: 3, value: 15 },
+    Transition{ level: 5, value: 30 },
+    Transition{ level: 7, value: 60 },
+];
+
+const SKELETON_CHANCE_TRANSITION: &[Transition] = &[
+    // Transition{ level: 1, value: 0 },
+    Transition{ level: 3, value: 5 },
+    Transition{ level: 5, value: 10 },
+    Transition{ level: 7, value: 30 },
+];
+
+const MAX_ITEMS_TRANSITION: &[Transition] = &[
+    Transition{ level: 1, value: 1 },
+    Transition{ level: 4, value: 2 },
+];
+
+const ROOM_OVERLAP_TRANSITION: &[Transition] = &[
+    Transition{ level: 3, value: 1 },
+];
 
 /// This is a generic object: the player, a monster, an item, the stairs...
 /// It's always represented by a character on screen.
@@ -332,63 +364,135 @@ fn move_towards(id: usize, target_x: i32, target_y: i32, map: &Map, objects: &mu
     move_by(id, dx, dy, map, objects);
 }
 
-fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>) {
-    let num_monsters = rand::thread_rng().gen_range(0, MAX_ROOM_MONSTERS + 1);
+fn from_dungeon_level(table: &[Transition], level: u32) -> u32 {
+    table
+        .iter()
+        .rev()
+        .find(|transition| level >= transition.level)
+        .map_or(0, |transition| transition.value)
+}
+
+fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>, level: u32) {
+    let max_monsters = from_dungeon_level(MAX_MONSTERS_TRANSITION, level);
+
+    let num_monsters = rand::thread_rng().gen_range(0, max_monsters + 1);
+
+    let troll_chance = from_dungeon_level(TROLL_CHANCE_TRANSITION, level);
+    let skeleton_chance = from_dungeon_level(SKELETON_CHANCE_TRANSITION, level);
+    let monster_chances = &mut [
+        Weighted {
+            weight: 80,
+            item: "orc",
+        },
+        Weighted {
+            weight: troll_chance,
+            item: "troll"
+        },
+        Weighted {
+            weight: skeleton_chance,
+            item: "skeleton"
+        }
+    ];
+    let monster_choice = WeightedChoice::new(monster_chances);
+
     for _ in 0..num_monsters {
         let x = rand::thread_rng().gen_range(room.x1 + 1, room.x2);
         let y = rand::thread_rng().gen_range(room.y1 + 1, room.y2);
 
         if !is_blocked(x, y, map, objects) {
-            let roll = rand::random::<f32>();
-            let mut monster = if roll > 0.9 {
-                let mut skeleton = Object::new(x, y, 's', LIGHTEST_SEPIA, "Skeleton", true);
-                skeleton.fighter = Some(Fighter {max_hp: 25, hp: 25, defense: 1, power: 6, xp: 200, on_death: DeathCallback::Monster });
-                skeleton.ai = Some(Ai::Basic);
-                skeleton
-            } else if roll > 0.8 { 
-                let mut troll = Object::new(x, y, 'T', DARKER_AMBER, "Troll", true);
-                troll.fighter = Some(Fighter {max_hp: 30, hp: 30, defense: 2, power: 4, xp: 100, on_death: DeathCallback::Monster });
-                troll.ai = Some(Ai::Basic);
-                troll
-            } else { 
-                let mut orc = Object::new(x, y, 'o', DESATURATED_GREEN, "Orc", true);
-                orc.fighter = Some(Fighter {max_hp: 10, hp: 10, defense: 0, power: 3, xp: 35, on_death: DeathCallback::Monster });
-                orc.ai = Some(Ai::Basic);
-                orc
+            let mut monster = match monster_choice.ind_sample(&mut rand::thread_rng()) {
+                "skeleton" => {
+                    let mut skeleton = Object::new(x, y, 's', LIGHTEST_SEPIA, "Skeleton", true);
+                    skeleton.fighter = Some(Fighter {max_hp: 25, hp: 25, defense: 1, power: 6, xp: 200, on_death: DeathCallback::Monster });
+                    skeleton.ai = Some(Ai::Basic);
+                    skeleton
+                },
+                "troll" => {
+                    let mut troll = Object::new(x, y, 'T', DARKER_AMBER, "Troll", true);
+                    troll.fighter = Some(Fighter {max_hp: 30, hp: 30, defense: 2, power: 4, xp: 100, on_death: DeathCallback::Monster });
+                    troll.ai = Some(Ai::Basic);
+                    troll
+                },
+                "orc" => {
+                    let mut orc = Object::new(x, y, 'o', DESATURATED_GREEN, "Orc", true);
+                    orc.fighter = Some(Fighter {max_hp: 10, hp: 10, defense: 0, power: 3, xp: 35, on_death: DeathCallback::Monster });
+                    orc.ai = Some(Ai::Basic);
+                    orc
+                },
+                _ => unreachable!()   
             };
             monster.alive = true;
             objects.push(monster);
         }
     }
 
-    let num_items = rand::thread_rng().gen_range(0, MAX_ROOM_ITEMS + 1);
+    let item_chances = &mut [
+        Weighted {
+            weight: 35,
+            item: Item::Heal
+        },
+        Weighted {
+            weight: from_dungeon_level(&[Transition{ level: 4, value:25 }], level),
+            item: Item::Lightning
+        },
+        Weighted {
+            weight: from_dungeon_level(&[Transition{ level: 2, value:10 }], level),
+            item: Item::Confuse
+        },
+        Weighted {
+            weight: from_dungeon_level(&[Transition{ level: 6, value:25 }], level),
+            item: Item::Fireball
+        },
+        Weighted {
+            weight: from_dungeon_level(&[
+                Transition{ level: 2, value:0 }, Transition{ level: 2, value:5 }, Transition{ level: 5, value: 15 } 
+                ], level
+            ),
+            item: Item::Artifact{name:"".to_string(), value:0}
+        }
+    ];
+    let item_choice = WeightedChoice::new(item_chances);
+
+    let max_items = from_dungeon_level(MAX_ITEMS_TRANSITION, level);
+    let num_items = rand::thread_rng().gen_range(0, max_items + 1);
 
     for _ in 0..num_items {
         let x = rand::thread_rng().gen_range(room.x1 + 1, room.x2);
         let y = rand::thread_rng().gen_range(room.y1 + 1, room.y2);
 
         if !is_blocked(x, y, map, objects) {
-            let dice = rand::random::<f32>();
-            let mut item = if dice < 0.6 {
-                let mut object = Object::new(x, y, '!', VIOLET, "health potion", false);
-                object.item = Some(Item::Heal);
-                object
-            } else if dice < 0.6 + 0.1 {
-                let mut object = Object::new(x, y, '#', LIGHT_YELLOW, "scroll of lightning bolt", false);
-                object.item = Some(Item::Lightning);
-                object
-            } else if dice < 0.6 + 0.1 + 0.1 {
-                let mut object = Object::new(x, y, '#', LIGHT_RED, "scroll of firball", false);
-                object.item = Some(Item::Fireball);
-                object
-            } else if dice < 0.6 + 0.1 + 0.1 + 0.1 {
-                let mut object = Object::new(x, y, '#', LIGHTEST_YELLOW, "scroll of confusion", false);
-                object.item = Some(Item::Confuse);
-                object
-            } else {
-                let mut object = Object::new(x, y, '{', GOLD, "artifact", false);
-                object.item = Some(Item::Artifact{name: namegen::generate_artifact_name(2,7), value: 1000});
-                object
+            let mut item = match item_choice.ind_sample(&mut rand::thread_rng()) {
+                Item::Heal => {
+                    let mut object = Object::new(x, y, '!', VIOLET, "health potion", false);
+                    object.item = Some(Item::Heal);
+                    object
+                },
+                Item::Lightning => {
+                    let mut object = Object::new(x, y, '#', LIGHT_YELLOW, "scroll of lightning bolt", false);
+                    object.item = Some(Item::Lightning);
+                    object
+                },
+                Item::Fireball => {
+                    let mut object = Object::new(x, y, '#', LIGHT_RED, "scroll of firball", false);
+                    object.item = Some(Item::Fireball);
+                    object
+                },
+                Item::Confuse => {
+                    let mut object = Object::new(x, y, '#', LIGHTEST_YELLOW, "scroll of confusion", false);
+                    object.item = Some(Item::Confuse);
+                    object
+                },
+                Item::Artifact{name: _, value: _} => {
+                    let mut object = Object::new(x, y, '{', GOLD, "artifact", false);
+                    object.item = Some(
+                        Item::Artifact{
+                            name: namegen::generate_artifact_name(2,7), 
+                            value: 250 * rand::thread_rng().gen_range(1, 30)
+                        }
+                    );
+                    object
+                }
+                 
             };
             item.always_visible = true;
             objects.push(item);
@@ -545,7 +649,7 @@ fn create_v_tunnel(y1: i32, y2: i32, x: i32, map: &mut Map) {
     }
 }
 
-fn make_map(objects :&mut Vec<Object>) -> Map {
+fn make_map(objects :&mut Vec<Object>, level: u32) -> Map {
     let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];    // vec! is a shorthand macro that initializes the Vec and fills it with the specified value
                                                                                         // the syntax is vec![value_to_fill, number_of_entries]
     
@@ -565,12 +669,14 @@ fn make_map(objects :&mut Vec<Object>) -> Map {
 
         let new_room = Rect::new(x, y, w, h);
 
-        // let failed = rooms.iter().any(|other_room| new_room.intersects_with(other_room)); // content of .any() is an anonymous function
-        let failed: bool = false;
+        let failed = match from_dungeon_level(ROOM_OVERLAP_TRANSITION, level) {
+            0 => rooms.iter().any(|other_room| new_room.intersects_with(other_room)),
+            _ => false
+        };
 
         if !failed {
             create_room(new_room, &mut map);
-            place_objects(new_room, &map, objects);
+            place_objects(new_room, &map, objects, level);
 
             let (new_x, new_y) = new_room.center();
 
@@ -603,7 +709,7 @@ fn next_level(tcod: &mut Tcod, game: &mut Game, objects: &mut Vec<Object>) {
     objects[PLAYER].heal(heal_hp);
     game.messages.add("You descend deeper into the dungeon ...", RED);
     game.dungeon_level += 1;
-    game.map = make_map(objects);
+    game.map = make_map(objects, game.dungeon_level);
     initialize_fov(tcod, &game.map);
 }
 
@@ -1136,7 +1242,7 @@ fn new_game(tcod: &mut Tcod) -> (Game, Vec<Object>) {
     let mut objects = vec![player];
 
     let mut game = Game {
-        map: make_map(&mut objects),
+        map: make_map(&mut objects, 1),
         messages: Messages::new(),
         inventory: vec![],
         dungeon_level: 1,
