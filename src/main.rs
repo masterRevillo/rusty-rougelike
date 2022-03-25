@@ -106,10 +106,15 @@ const TROLL_CHANCE_TRANSITION: &[Transition] = &[
 ];
 
 const SKELETON_CHANCE_TRANSITION: &[Transition] = &[
-    // Transition{ level: 1, value: 0 },
     Transition{ level: 3, value: 5 },
     Transition{ level: 5, value: 10 },
     Transition{ level: 7, value: 30 },
+];
+
+const SPECTRE_CHANCE_TRANSITION: &[Transition] = &[
+    Transition{ level: 6, value: 10 },
+    Transition{ level: 8, value: 30 },
+    Transition{ level: 10, value: 70 },
 ];
 
 const MAX_ITEMS_TRANSITION: &[Transition] = &[
@@ -119,6 +124,13 @@ const MAX_ITEMS_TRANSITION: &[Transition] = &[
 
 const ROOM_OVERLAP_TRANSITION: &[Transition] = &[
     Transition{ level: 3, value: 1 },
+];
+
+const LEVEL_TYPE_TRANSITION: &[Transition] = &[
+    Transition{ level: 1, value: 0 },
+    Transition{ level: 5, value: 1 },
+    Transition{ level: 6, value: 0 },
+    Transition{ level: 10, value: 2 },
 ];
 
 /// This is a generic object: the player, a monster, an item, the stairs...
@@ -479,6 +491,7 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>, level: u32) {
 
     let troll_chance = from_dungeon_level(TROLL_CHANCE_TRANSITION, level);
     let skeleton_chance = from_dungeon_level(SKELETON_CHANCE_TRANSITION, level);
+    let spectre_chance = from_dungeon_level(SPECTRE_CHANCE_TRANSITION, level);
     let monster_chances = &mut [
         Weighted {
             weight: 80,
@@ -491,6 +504,10 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>, level: u32) {
         Weighted {
             weight: skeleton_chance,
             item: "skeleton"
+        },
+        Weighted {
+            weight: spectre_chance,
+            item: "spectre"
         }
     ];
     let monster_choice = WeightedChoice::new(monster_chances);
@@ -516,6 +533,12 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>, level: u32) {
                 "orc" => {
                     let mut orc = Object::new(x, y, 'o', DESATURATED_GREEN, "Orc", true);
                     orc.fighter = Some(Fighter {base_max_hp: 10, hp: 10, base_defense: 0, base_power: 3, xp: 35, on_death: DeathCallback::Monster });
+                    orc.ai = Some(Ai::Basic);
+                    orc
+                },
+                "spectre" => {
+                    let mut orc = Object::new(x, y, 'o', DARKER_AZURE, "Spectre", true);
+                    orc.fighter = Some(Fighter {base_max_hp: 43, hp: 43, base_defense: 4, base_power: 9, xp: 250, on_death: DeathCallback::Monster });
                     orc.ai = Some(Ai::Basic);
                     orc
                 },
@@ -823,13 +846,80 @@ fn make_map(objects :&mut Vec<Object>, level: u32) -> Map {
     map
 }
 
+fn make_boss_map(objects :&mut Vec<Object>, level: u32) -> Map {
+    let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize]; 
+    let mut rooms: std::vec::Vec<Rect> = vec![];
+
+    assert_eq!(&objects[PLAYER] as *const _, &objects[0] as *const _);
+    objects.truncate(1);
+
+    let boss_room = Rect::new(0, 0, MAP_WIDTH - 2, MAP_HEIGHT - 2);
+    create_room(boss_room, &mut map);
+
+    let (center_x, center_y) = boss_room.center();
+
+    let mut boss = Object::new(center_x, center_y, 'B', DARK_CRIMSON, "Boss", true);
+    boss.fighter = Some(Fighter {base_max_hp: 50, hp: 50, base_defense: 8, base_power: 11, xp: 1000, on_death: DeathCallback::Monster });
+    boss.ai = Some(Ai::Basic);
+
+
+
+
+
+    for _ in 0..MAX_ROOMS {
+        let w = rand::thread_rng().gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
+        let h = rand::thread_rng().gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
+
+        let x = rand::thread_rng().gen_range(0, MAP_WIDTH - w);
+        let y = rand::thread_rng().gen_range(0, MAP_HEIGHT - h);
+
+        let new_room = Rect::new(x, y, w, h);
+
+        let failed = match from_dungeon_level(ROOM_OVERLAP_TRANSITION, level) {
+            0 => rooms.iter().any(|other_room| new_room.intersects_with(other_room)),
+            _ => false
+        };
+
+        if !failed {
+            create_room(new_room, &mut map);
+            place_objects(new_room, &map, objects, level);
+
+            let (new_x, new_y) = new_room.center();
+
+            if rooms.is_empty() {
+                objects[PLAYER].set_pos(new_x, new_y);
+            } else {
+                let (prev_x, prev_y) = rooms[rooms.len() - 1].center();
+
+                if rand::random() {
+                    create_h_tunnel(prev_x, new_x, prev_y, &mut map);
+                    create_v_tunnel(prev_y, new_y, new_x, &mut map);
+                } else {
+                    create_v_tunnel(prev_y, new_y, prev_x, &mut map);
+                    create_h_tunnel(prev_x, new_x, new_y, &mut map);
+                }
+            }
+            rooms.push(new_room);
+        }
+    }
+    let (last_room_x, last_room_y) = rooms[rooms.len() -1].center();
+    let mut stairs = Object::new(last_room_x, last_room_y, '<', WHITE, "stairs", false);
+    stairs.always_visible = true;
+    objects.push(stairs);
+    map
+}
+
 fn next_level(tcod: &mut Tcod, game: &mut Game, objects: &mut Vec<Object>) {
     game.messages.add("You rest for a minute and recover your strength", VIOLET);
     let heal_hp = objects[PLAYER].max_hp(game) / 2;
     objects[PLAYER].heal(heal_hp, game);
     game.messages.add("You descend deeper into the dungeon ...", RED);
     game.dungeon_level += 1;
-    game.map = make_map(objects, game.dungeon_level);
+    game.map = match from_dungeon_level(LEVEL_TYPE_TRANSITION, game.dungeon_level) {
+        1 => make_map(objects, game.dungeon_level),
+        2 => make_map(objects, game.dungeon_level),
+        _ => make_map(objects, game.dungeon_level),
+    };
     initialize_fov(tcod, &game.map);
 }
 
