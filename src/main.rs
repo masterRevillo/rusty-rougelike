@@ -8,10 +8,19 @@ use std::fs::File;
 use std::io::{Read, Write};
 use serde::{Deserialize, Serialize};
 use std::cmp;
+use std::collections::HashMap;
 use rand::Rng;
 use rand::distributions::{IndependentSample, Weighted, WeightedChoice};
+use crate::audio::{AudioEngine, AudioEventProcessor};
+use crate::event_processing::{EventData, EventProcessor, EventType, GameEvent};
+use crate::game_occurrence::GameOccurrenceEventProcessor;
+use crate::object::Object;
 
 mod namegen;
+mod event_processing;
+mod audio;
+mod game_occurrence;
+mod object;
 
 const SCREEN_WIDTH: i32 = 80;
 const SCREEN_HEIGHT: i32 = 75;
@@ -80,12 +89,54 @@ struct Tcod {
 type Map = Vec<Vec<Tile>>;
 
 #[derive(Serialize, Deserialize)]
-struct Game {
+pub struct Game {
     map: Map,
     messages: Messages,
     //TODO: move inventory out of the game struct
     inventory: Vec<Object>,
     dungeon_level: u32,
+    event_bus: Vec<GameEvent>,
+    bus_tail: usize,
+    max_events: usize,
+    event_processors: Vec<Box<dyn EventProcessor>>
+}
+
+impl Game {
+    fn process_events(&mut self) {
+        for processor in self.event_processors.iter_mut() {
+            processor.as_mut().process(&mut self.map,&self.event_bus, self.max_events, self.bus_tail);
+        }
+    }
+
+    fn add_event(&mut self, event: GameEvent) {
+        if self.event_bus.len() > self.bus_tail {
+            self.event_bus[self.bus_tail] = event;
+        } else {
+            self.event_bus.push(event);
+        }
+        self.bus_tail = (self.bus_tail + 1) % self.max_events;
+        println!("added event, tail now at {}", self.bus_tail)
+    }
+
+    fn set_audio_engine(&mut self) {
+        let mut audio_engine = AudioEngine::new().unwrap();
+        audio_engine.load_samples();
+        self.event_processors.iter_mut()
+            .find(|p| p.get_id() == "audio_event_processor")
+            .map(|p| if let Some(aep) = p.as_any_mut().downcast_mut::<AudioEventProcessor>() {
+                aep.audio_engine = Some(audio_engine)
+            });
+    }
+
+    fn play_background_music(&mut self) {
+        self.event_processors.iter_mut()
+            .find(|p| p.get_id() == "audio_event_processor")
+            .map(|p| if let Some(aep) = p.as_any_mut().downcast_mut::<AudioEventProcessor>() {
+                if let Some(ae) = aep.audio_engine.as_mut() {
+                    ae.play_bg();
+                }
+            });
+    }
 }
 
 struct Transition {
@@ -128,171 +179,10 @@ const ROOM_OVERLAP_TRANSITION: &[Transition] = &[
 
 const LEVEL_TYPE_TRANSITION: &[Transition] = &[
     Transition{ level: 1, value: 0 },
-    Transition{ level: 5, value: 1 },
-    Transition{ level: 6, value: 0 },
+    Transition{ level: 2, value: 1 },
+    Transition{ level: 3, value: 0 },
     Transition{ level: 10, value: 2 },
 ];
-
-/// This is a generic object: the player, a monster, an item, the stairs...
-/// It's always represented by a character on screen.
-#[derive(Debug, Serialize, Deserialize)]
-struct Object {
-    x: i32,
-    y: i32,
-    char: char,
-    color: Color,
-    name: String,
-    blocks: bool,
-    alive: bool,
-    fighter: Option<Fighter>,
-    ai: Option<Ai>,
-    item: Option<Item>,
-    always_visible: bool,
-    level: i32,
-    equipment: Option<Equipment>,
-}
-
-impl Object {
-    pub fn new(x: i32, y: i32, char: char, color: Color, name: &str, blocks: bool) -> Self {
-        Object {
-            x: x, 
-            y: y, 
-            char: char, 
-            color: color, 
-            name: name.into(), 
-            blocks: blocks, 
-            alive: false,
-            fighter: None,
-            ai: None,
-            item: None,
-            always_visible: false,
-            level: 1,
-            equipment: None,
-        }
-    }
-
-    // draw self onto given console
-    pub fn draw(&self, con: &mut dyn Console) {             // dyn: Console is a "trait", not a struct. dyn is basically used to announce that its a trait
-        con.set_default_foreground(self.color);                  // pointers to traits are double the size of pointers to structs, so there some implications with using it
-        con.put_char(self.x, self.y, self.char, BackgroundFlag::None)
-    }
-
-    pub fn pos(&self) -> (i32, i32) {
-        (self.x, self.y)
-    }
-
-    pub fn set_pos(&mut self, x: i32, y: i32) {
-        self.x = x;
-        self.y = y;
-    }
-
-    pub fn distance_to(&self, other: &Object) -> f32 {
-        let dx = other.x - self.x;
-        let dy = other.y - self.y;
-        ((dx.pow(2) + dy.pow(2)) as f32).sqrt()
-    }
-
-    pub fn take_damage(&mut self, damage: i32, game: &mut Game) -> Option<i32>{
-        if let Some(fighter) = self.fighter.as_mut() {
-            if damage > 0 {
-                fighter.hp -= damage;
-            }
-        }
-        if let Some(fighter) = self.fighter {
-            if fighter.hp <= 0 {
-                self.alive = false;
-                fighter.on_death.callback(self, game);
-                return Some(fighter.xp);
-            }
-        }
-        None
-    }
-
-    pub fn attack(&mut self, target: &mut Object, game: &mut Game) {
-        let damage = self.power(game) - target.defense(game);
-        if damage > 0 {
-            game.messages.add(format!("{} attacks {} for {} hit points", self.name, target.name, damage), WHITE);
-            if let Some(xp) = target.take_damage(damage, game) {
-                self.fighter.as_mut().unwrap().xp += xp;
-            }
-        } else {
-            game.messages.add(format!("{} attacks {}, but it has no effect", self.name, target.name), WHITE);
-        }
-    }
-
-    pub fn heal(&mut self, amount: i32, game: &Game) {
-        let max_hp = self.max_hp(game);
-        if let Some(ref mut fighter) = self.fighter {
-            fighter.hp += amount;
-            if fighter.hp > max_hp {
-                fighter.hp = max_hp;
-            }
-        }
-    }
-
-    pub fn distance(&self, x: i32, y:i32) -> f32{
-        (((x - self.x).pow(2) + (y - self.y).pow(2)) as f32).sqrt()
-    }
-
-    pub fn equip(&mut self, messages: &mut Messages) {
-        if self.item.is_none() {
-            messages.add(format!("Cannot equip {:?} because it's not an Item.", self ), RED);
-            return;
-        };
-        if let Some(ref mut equipment) = self.equipment {
-            if !equipment.equipped {
-                equipment.equipped = true;
-                messages.add(format!("Equipped {} on {}.", self.name, equipment.slot), LIGHT_GREEN);
-            }
-        } else {
-            messages.add(format!("Cannot equip {:?} because it's not an Equipment.", self ), RED);
-        }
-    }
-
-    pub fn unequip(&mut self, messages: &mut Messages) {
-        if self.item.is_none() {
-            messages.add(format!("Cannot unequip {:?} because it's not an Item.", self ), RED);
-            return;
-        }
-        if let Some(ref mut equipment) = self.equipment {
-            if equipment.equipped {
-                messages.add(format!("Unequipped {} from {}.", self.name, equipment.slot), LIGHT_YELLOW);
-            }
-        } else {
-            messages.add(format!("Cannot unequip {:?} because it's not an Equipment.", self ), RED); 
-        }
-    }
-
-    pub fn power(&self, game: &Game) -> i32 {
-        let base_power = self.fighter.map_or(0, |f| f.base_power);
-        let bonus: i32 = self.get_all_equipped(game).iter().map(|e| e.power_bonus).sum();
-        base_power + bonus
-    }
-
-    pub fn defense(&self, game: &Game) -> i32 {
-        let base_defense = self.fighter.map_or(0, |f| f.base_defense);
-        let bonus: i32 = self.get_all_equipped(game).iter().map(|e| e.defense_bonus).sum();
-        base_defense + bonus
-    }
-
-    pub fn max_hp(&self, game: &Game) -> i32 {
-        let base_max_hp = self.fighter.map_or(0, |f| f.base_max_hp);
-        let bonus: i32 = self.get_all_equipped(game).iter().map(|e| e.max_hp_bonus).sum();
-        base_max_hp + bonus
-    }
-
-    pub fn get_all_equipped(&self, game: &Game) -> Vec<Equipment>{
-        // TODO: remove this, as every entity should have their own inventory
-        if self.name == "player" {
-            game.inventory.iter()
-                .filter(|e| e.equipment.map_or(false, |e| e.equipped))
-                .map(|e| e.equipment.unwrap())
-                .collect()
-        } else {
-            vec![]
-        }
-    }
-}
 
 fn level_up(tcod: &mut Tcod, game: &mut Game, objects: &mut [Object]) {
     let player = &mut objects[PLAYER];
@@ -335,6 +225,7 @@ fn player_death(player: &mut Object, game: &mut Game) {
     game.messages.add("You died!", RED);
     player.char = '%';
     player.color = DARK_RED;
+    game.add_event(GameEvent::from_type (EventType::PlayerDie));
 }
 
 fn monster_death(monster: &mut Object, game: &mut Game) {
@@ -345,12 +236,27 @@ fn monster_death(monster: &mut Object, game: &mut Game) {
     monster.fighter = None;
     monster.ai = None;
     monster.name = format!("remains of {}", monster.name);
+    game.add_event(GameEvent::from_type(EventType::MonsterDie));
+}
+
+fn boss_death(monster: &mut Object, game: &mut Game) {
+    game.messages.add(format!("{} died. It gives you {} xp.", monster.name, monster.fighter.unwrap().xp), ORANGE);
+    monster.char = '%';
+    monster.color = DARK_RED;
+    monster.blocks = false;
+    monster.fighter = None;
+    monster.ai = None;
+    monster.name = format!("remains of {}", monster.name);
+    game.add_event(GameEvent::from_type_with_data(
+        EventType::BossDie,
+        HashMap::from([("position".to_string(), EventData::Pos(monster.pos()))])
+    ));
 }
 
 
 //TODO spilt xp store for player and drop xp into different values
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-struct Fighter {
+pub struct Fighter {
     base_max_hp: i32,
     hp: i32,
     base_defense: i32,
@@ -363,6 +269,7 @@ struct Fighter {
 enum DeathCallback {
     Player,
     Monster,
+    Boss
 }
 
 impl DeathCallback {
@@ -371,13 +278,14 @@ impl DeathCallback {
         let callback = match self {
             Player => player_death,
             Monster => monster_death,
+            Boss => boss_death,
         };
         callback(object, game);
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-enum Ai {
+pub enum Ai {
     Basic,
     Confused {                  // enum values can hold data. Dope
         previous_ai: Box<Ai>,
@@ -386,7 +294,7 @@ enum Ai {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-enum Item {
+pub enum Item {
     Heal,
     Lightning,
     Confuse,
@@ -412,9 +320,11 @@ fn player_move_or_attack(dx: i32, dy: i32, game: &mut Game, objects: &mut [Objec
         Some(target_id) => {
             let (player, target) = mut_two(PLAYER, target_id, objects);
             player.attack(target, game);
+            game.add_event(GameEvent::from_type(EventType::PlayerAttack));
         }
         None => {
-            move_by(PLAYER, dx, dy, &game.map, objects)
+            move_by(PLAYER, dx, dy, &game.map, objects);
+            game.add_event(GameEvent::from_type(EventType::PlayerMove));
         }
     }
 }
@@ -451,7 +361,7 @@ fn move_towards(id: usize, target_x: i32, target_y: i32, map: &Map, objects: &mu
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-struct Equipment {
+pub struct Equipment {
     slot: Slot,
     equipped: bool,
     max_hp_bonus: i32,
@@ -669,6 +579,8 @@ fn ai_basic(monster_id: usize, tcod: &Tcod, game: &mut Game, objects: &mut [Obje
             // close enough to start a war
             let (monster, player) = mut_two(monster_id, PLAYER, objects);
             monster.attack(player, game);
+            game.add_event(GameEvent::from_type(EventType::MonsterAttack));
+
         }
     }
     Ai::Basic
@@ -859,53 +771,10 @@ fn make_boss_map(objects :&mut Vec<Object>, level: u32) -> Map {
     let (center_x, center_y) = boss_room.center();
 
     let mut boss = Object::new(center_x, center_y, 'B', DARK_CRIMSON, "Boss", true);
-    boss.fighter = Some(Fighter {base_max_hp: 50, hp: 50, base_defense: 8, base_power: 11, xp: 1000, on_death: DeathCallback::Monster });
+    boss.fighter = Some(Fighter {base_max_hp: 1, hp: 1, base_defense: 1, base_power: 1, xp: 1000, on_death: DeathCallback::Boss });
+    // boss.fighter = Some(Fighter {base_max_hp: 50, hp: 50, base_defense: 8, base_power: 11, xp: 1000, on_death: DeathCallback::Monster });
     boss.ai = Some(Ai::Basic);
-
-
-
-
-
-    for _ in 0..MAX_ROOMS {
-        let w = rand::thread_rng().gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
-        let h = rand::thread_rng().gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
-
-        let x = rand::thread_rng().gen_range(0, MAP_WIDTH - w);
-        let y = rand::thread_rng().gen_range(0, MAP_HEIGHT - h);
-
-        let new_room = Rect::new(x, y, w, h);
-
-        let failed = match from_dungeon_level(ROOM_OVERLAP_TRANSITION, level) {
-            0 => rooms.iter().any(|other_room| new_room.intersects_with(other_room)),
-            _ => false
-        };
-
-        if !failed {
-            create_room(new_room, &mut map);
-            place_objects(new_room, &map, objects, level);
-
-            let (new_x, new_y) = new_room.center();
-
-            if rooms.is_empty() {
-                objects[PLAYER].set_pos(new_x, new_y);
-            } else {
-                let (prev_x, prev_y) = rooms[rooms.len() - 1].center();
-
-                if rand::random() {
-                    create_h_tunnel(prev_x, new_x, prev_y, &mut map);
-                    create_v_tunnel(prev_y, new_y, new_x, &mut map);
-                } else {
-                    create_v_tunnel(prev_y, new_y, prev_x, &mut map);
-                    create_h_tunnel(prev_x, new_x, new_y, &mut map);
-                }
-            }
-            rooms.push(new_room);
-        }
-    }
-    let (last_room_x, last_room_y) = rooms[rooms.len() -1].center();
-    let mut stairs = Object::new(last_room_x, last_room_y, '<', WHITE, "stairs", false);
-    stairs.always_visible = true;
-    objects.push(stairs);
+    objects.push(boss);
     map
 }
 
@@ -916,8 +785,8 @@ fn next_level(tcod: &mut Tcod, game: &mut Game, objects: &mut Vec<Object>) {
     game.messages.add("You descend deeper into the dungeon ...", RED);
     game.dungeon_level += 1;
     game.map = match from_dungeon_level(LEVEL_TYPE_TRANSITION, game.dungeon_level) {
-        1 => make_map(objects, game.dungeon_level),
-        2 => make_map(objects, game.dungeon_level),
+        0 => make_map(objects, game.dungeon_level),
+        1 => make_boss_map(objects, game.dungeon_level),
         _ => make_map(objects, game.dungeon_level),
     };
     initialize_fov(tcod, &game.map);
@@ -1495,7 +1364,17 @@ fn new_game(tcod: &mut Tcod) -> (Game, Vec<Object>) {
         messages: Messages::new(),
         inventory: vec![],
         dungeon_level: 1,
+        event_bus: vec![],
+        bus_tail: 0,
+        max_events: 32,
+        event_processors: vec![
+            Box::new(AudioEventProcessor::new()),
+            Box::new(GameOccurrenceEventProcessor::new())
+        ]
     };
+
+    // game.set_audio_engine();
+    game.play_background_music();
 
     let mut dagger = Object::new(0, 0, '-', SKY, "dagger", false);
     dagger.item = Some(Item::Sword);
@@ -1554,6 +1433,8 @@ fn run_game_loop(tcod: &mut Tcod, game: &mut Game, objects: &mut Vec<Object>) {
             save_game(game, objects).unwrap();
             break;
         }
+        game.process_events();
+
         if objects[PLAYER].alive && player_action != PlayerAction::DidntTakeTurn {
             for id in 0..objects.len() {
                 if objects[id].ai.is_some() {
@@ -1614,7 +1495,9 @@ fn load_game() -> Result<(Game, Vec<Object>), Box<dyn Error>> {
     let mut json_save_state = String::new();
     let mut file = File::open("savegame")?;
     file.read_to_string(&mut json_save_state)?;
-    let result = serde_json::from_str::<(Game, Vec<Object>)>(&json_save_state)?;
+    let mut result = serde_json::from_str::<(Game, Vec<Object>)>(&json_save_state)?;
+    // result.0.set_audio_engine();
+    result.0.play_background_music();
     Ok(result)
 }
 
