@@ -1,8 +1,12 @@
 use std::any::Any;
 use std::borrow::Borrow;
 use serde::{Deserialize, Serialize};
+use tcod::colors::WHITE;
 use crate::event_processing::EventBusReader;
-use crate::{EventProcessor, EventType, EventData, GameEvent, Map, Tile};
+use crate::map::{Map};
+use crate::{EventData, EventProcessor, GameEvent, EventType};
+use crate::entity::Entity;
+use crate::tile::Tile;
 
 #[derive(Serialize, Deserialize)]
 pub struct GameOccurrenceEventProcessor {
@@ -19,7 +23,7 @@ impl GameOccurrenceEventProcessor {
 
 #[typetag::serde]
 impl EventProcessor for GameOccurrenceEventProcessor {
-    fn process(&mut self, map: &mut Map, event_bus: &Vec<GameEvent>, max_events: usize, bus_tail: usize) {
+    fn process(&mut self, _map: &mut Map, entities: &mut Vec<Entity>, event_bus: &Vec<GameEvent>, max_events: usize, bus_tail: usize) {
         use EventType::*;
         if self.event_bus_reader.head != bus_tail {
             let event: &GameEvent = event_bus[self.event_bus_reader.head].borrow();
@@ -28,10 +32,14 @@ impl EventProcessor for GameOccurrenceEventProcessor {
                     let event_data = event.data.get("position");
                     match event_data {
                         Some(data) => match data {
-                            EventData::Pos((x,y)) => map[*x as usize][*y as usize] = Tile::wall(),
-                            _ => println!("WARNING: attempted to pull position data, but it wasn't of the correct type")
+                            EventData::TupleI32I32((x,y)) => {
+                                let mut stairs = Entity::new(*x, *y - 1, '<', WHITE, "stairs", false);
+                                stairs.always_visible = true;
+                                entities.push(stairs);
+                            },
+                            _ => log::warn!("WARNING: attempted to pull position data, but it wasn't of the correct type")
                         }
-                        _ => println!("WARNING: attempted to pull position data, but it wasn't on the event")
+                        _ => log::warn!("WARNING: attempted to pull position data, but it wasn't on the event")
                     }
                 }
                 _ => {}

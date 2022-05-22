@@ -1,8 +1,9 @@
 use std::any::Any;
 use soloud::*;
 use crate::event_processing::{EventBusReader, EventProcessor, EventType};
-use crate::{GameEvent, Map};
 use serde::{Deserialize, Serialize};
+use crate::config::GameConfig;
+use crate::{Entity, GameEvent, Map};
 
 pub struct AudioSample {
     sample: audio::Wav,
@@ -37,11 +38,12 @@ pub struct AudioEngine {
     bg: Option<audio::Wav>,
     #[serde(skip)]
     player: Option<Soloud>,
+    configs: Box<GameConfig>
 }
 
 #[typetag::serde]
 impl EventProcessor for AudioEventProcessor {
-    fn process(&mut self, _map: &mut Map, event_bus: &Vec<GameEvent>, max_events: usize, bus_tail: usize) {
+    fn process(&mut self, _map: &mut Map, _entities: &mut Vec<Entity>, event_bus: &Vec<GameEvent>, max_events: usize, bus_tail: usize) {
         use EventType::*;
         if self.event_bus_reader.head != bus_tail {
             let sample_name = match event_bus[self.event_bus_reader.head].event_type {
@@ -49,15 +51,16 @@ impl EventProcessor for AudioEventProcessor {
                 MonsterAttack => Some("monster1".to_string()),
                 MonsterDie => Some("monster_die1".to_string()),
                 BossDie => Some("monster_die1".to_string()),
+                PlayerPickupItem => Some("pick".to_string()),
                 _ => None
             };
             if sample_name.is_some() {
                 match &self.audio_engine {
                     Some(ae) => ae.play_sfx(sample_name.unwrap()),
-                    None => println!("Cannot play sound: Audio Engine not present")
+                    None => log::warn!("Cannot play sound: Audio Engine not present")
                 }
             }
-            println!("audio processing done - head: {}, tail:{}", self.event_bus_reader.head, bus_tail);
+            log::debug!("audio processing done - head: {}, tail:{}", self.event_bus_reader.head, bus_tail);
             self.event_bus_reader.head = (self.event_bus_reader.head + 1) % max_events;
         }
     }
@@ -77,28 +80,32 @@ impl EventProcessor for AudioEventProcessor {
 }
 
 impl AudioEngine {
-    pub fn new() -> Result<AudioEngine, Box<dyn std::error::Error>> {
+    pub fn new(configs: GameConfig) -> Result<AudioEngine, Box<dyn std::error::Error>> {
         let engine = AudioEngine {
             samples: vec![],
             bg: None,
             player: Some(Soloud::default()?),
+            configs: Box::new(configs)
         };
         Ok(engine)
     }
 
     pub fn load_samples(&mut self) {
         let mut punch = audio::Wav::default();
-        punch.load(&std::path::Path::new("punch.wav"));
+        punch.load(&std::path::Path::new("assets/audio/punch.wav"));
         self.add_sample(AudioSample{sample: punch, name: "punch".to_string()});
 
         let mut monster1 = audio::Wav::default();
-        monster1.load(&std::path::Path::new("monster1.wav"));
+        monster1.load(&std::path::Path::new("assets/audio/monster1.wav"));
         self.add_sample(AudioSample{sample: monster1, name: "monster1".to_string()});
 
         let mut monster_die1 = audio::Wav::default();
-        monster_die1.load(&std::path::Path::new("monster_die1.mp3"));
+        monster_die1.load(&std::path::Path::new("assets/audio/monster_die1.mp3"));
         self.add_sample(AudioSample{sample: monster_die1, name: "monster_die1".to_string()});
 
+        let mut pick = audio::Wav::default();
+        pick.load(&std::path::Path::new("assets/audio/pick.wav"));
+        self.add_sample(AudioSample{sample: pick, name: "pick".to_string()});
 
         let mut bg = audio::Wav::default();
         bg.load(&std::path::Path::new("ambient-metal.wav"));
@@ -115,15 +122,16 @@ impl AudioEngine {
     }
 
     pub fn play_sfx(&self, sfx_name: String) {
+        if !self.configs.play_sfx {return;}
         let sample = self.samples.iter().find(|s| s.name.eq(&sfx_name));
-        println!("playing sample with name {}", sfx_name);
+        log::debug!("playing sample with name {}", sfx_name);
         match sample {
-            None => println!("no sample found with name {}", sfx_name),
+            None => log::warn!("no sample found with name {}", sfx_name),
             Some(s) => {
                 if let Some(pl) = self.player.as_ref() {
                     let _handle = pl.play_ex(
                         &s.sample,
-                        -1.0, 0.0, false, Handle::PRIMARY
+                        self.configs.sfx_volume, 0.0, false, Handle::PRIMARY
                     );
                 }
             }
@@ -131,14 +139,15 @@ impl AudioEngine {
     }
 
     pub fn play_bg(&mut self) {
+        if !self.configs.play_bgm {return;}
         match &self.bg {
-            None => println!("no bg to play"),
+            None => log::warn!("no bgm to play"),
             Some(bg) => {
                 if let Some(pl) = self.player.as_mut() {
-                    println!("about to play bg music");
+                    log::debug!("about to play bg music");
                     let handle = pl.play_background_ex(
                         bg,
-                        -1.0, false, Handle::PRIMARY
+                        self.configs.bgm_volume, false, Handle::PRIMARY
                     );
                     pl.set_looping(handle, true);
                 }
