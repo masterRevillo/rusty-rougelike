@@ -5,8 +5,8 @@ use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
 use tcod::console::{BackgroundFlag, Console};
 use serde::{Deserialize, Serialize};
 use crate::{Ai, Equipment, Fighter, Item, Messages};
-use crate::event_processing::{EventBus, EventData, EventType, GameEvent};
-use crate::camera::Camera;
+use crate::event_processing::game_event_processing::{EventBus, EventData, EventType, GameEvent};
+use crate::graphics::camera::Camera;
 
 /// This is a generic object: the player, a monster, an item, the stairs...
 /// It's always represented by a character on screen.

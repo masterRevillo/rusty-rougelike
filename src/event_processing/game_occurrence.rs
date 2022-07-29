@@ -2,7 +2,7 @@ use std::any::Any;
 use std::borrow::Borrow;
 use serde::{Deserialize, Serialize};
 use tcod::colors::WHITE;
-use crate::event_processing::EventBusReader;
+use crate::event_processing::game_event_processing::EventBusReader;
 use crate::map::{Map};
 use crate::{EventData, EventProcessor, GameEvent, EventType};
 use crate::entity::Entity;

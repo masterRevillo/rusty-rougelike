@@ -1,49 +1,74 @@
+#[macro_use]
+extern crate lazy_static;
+
 use std::borrow::{Borrow, BorrowMut};
-use tcod::colors::*;
-use tcod::console::*;
-use tcod::input::{self, Event, Key, Mouse};
-use tcod::map::{FovAlgorithm, Map as FovMap}; //imports the FOV Map object, but renames
-                                                // so it doesnt clash with our Map
+use std::cmp;
+use std::collections::HashMap;
+
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
-use serde::{Deserialize, Serialize};
-use std::cmp;
-use std::collections::HashMap;
-use log::LevelFilter;
-use rand::Rng;
-use rand::distributions::{IndependentSample, Weighted, WeightedChoice};
-use crate::audio::{AudioEngine, AudioEventProcessor};
-use crate::config::{GameConfig, load_configs};
-use crate::event_processing::{EventBus, EventData, EventProcessor, EventType, GameEvent};
-use crate::game_occurrence::GameOccurrenceEventProcessor;
-use crate::entity::Entity;
-use simple_logger::SimpleLogger;
-use tcod::input::KeyCode::Escape;
-use crate::event_log_processor::EventLogProcessor;
-use crate::map::{in_map_bounds, LEVEL_TYPE_TRANSITION, make_boss_map, make_map, MAP_HEIGHT, MAP_WIDTH};
-use crate::tile::Tile;
-use crate::camera::Camera;
-use crate::game_engine::GameEngine;
-use crate::map::Map;
-use crate::render_functions::{initialize_fov, inventory_menu, menu, msgbox};
-use crate::setup_game::main_menu;
-use crate::framework::Tcod;
 
-mod namegen;
-mod event_processing;
-mod audio;
-mod game_occurrence;
+use log::LevelFilter;
+use rand::distributions::{IndependentSample, Weighted, WeightedChoice};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use simple_logger::SimpleLogger;
+use tcod::colors::*;
+use tcod::console::*;
+use tcod::input::{self, Event, Key, Mouse};
+use tcod::input::KeyCode::Escape;
+use tcod::map::{FovAlgorithm, Map as FovMap};
+
+
+use event_processing::audio_event_processor::AudioEventProcessor;
+use event_processing::event_log_processor::EventLogProcessor;
+use event_processing::game_occurrence::GameOccurrenceEventProcessor;
+use util::death_callback::DeathCallback;
+
+use crate::graphics::camera::Camera;
+use crate::config::game_config::{GameConfig, load_configs};
+use crate::entity::Entity;
+use crate::event_processing::game_event_processing::{EventBus, EventData, EventProcessor, EventType, GameEvent};
+use crate::framework::Tcod;
+use crate::game_engine::GameEngine;
+use crate::map::{in_map_bounds, LEVEL_TYPE_TRANSITION, make_boss_map, make_map, MAP_HEIGHT, MAP_WIDTH};
+use crate::map::Map;
+use graphics::render_functions::{initialize_fov, inventory_menu, menu, msgbox};
+use crate::setup_game::main_menu;
+use crate::tile::Tile;
+use crate::util::transition::Transition;
+
+mod event_processing{
+    pub mod game_event_processing;
+    pub mod audio_event_processor;
+    pub mod game_occurrence;
+    pub mod event_log_processor;
+}
 mod entity;
-mod config;
+mod config {
+    pub mod game_config;
+}
 mod map;
 mod tile;
-mod event_log_processor;
-mod camera;
+mod graphics{
+    pub mod camera;
+    pub mod render_functions;
+}
+
 mod game_engine;
 mod framework;
 mod setup_game;
-mod render_functions;
+
+mod audio {
+    pub mod audio_engine;
+}
+mod util {
+    pub mod transition;
+    pub mod death_callback;
+    pub mod namegen;
+}
+
 
 const SCREEN_WIDTH: i32 = 80;
 const SCREEN_HEIGHT: i32 = 75;
@@ -82,13 +107,6 @@ const LEVEL_UP_FACTOR: i32 = 150;
 const LEVEL_SCREEN_WIDTH: i32 = 40;
 const STATS_SCREEN_WIDTH: i32 = 30;
 
-
-
-pub struct Transition {
-    level: u32,
-    value: u32,
-}
-
 fn level_up(tcod: &mut Tcod, player: &mut Entity) {
     let level_up_xp = LEVEL_UP_BASE + LEVEL_UP_FACTOR * player.level;
     if player.fighter.as_ref().map_or(0, |f| f.xp) >= level_up_xp {
@@ -126,38 +144,6 @@ fn level_up(tcod: &mut Tcod, player: &mut Entity) {
     } 
 }
 
-fn player_death(player: &mut Entity, event_bus: &mut EventBus) {
-    // game.messages.add("You died!", RED);
-    player.char = '%';
-    player.color = DARK_RED;
-    event_bus.add_event(GameEvent::from_type (EventType::PlayerDie));
-}
-
-fn monster_death(monster: &mut Entity, event_bus: &mut EventBus) {
-    // game.messages.add(format!("{} died. It gives you {} xp.", monster.name, monster.fighter.unwrap().xp), ORANGE);
-    monster.char = '%';
-    monster.color = DARK_RED;
-    monster.blocks = false;
-    monster.fighter = None;
-    monster.ai = None;
-    monster.name = format!("remains of {}", monster.name);
-    event_bus.add_event(GameEvent::from_type(EventType::MonsterDie));
-}
-
-fn boss_death(monster: &mut Entity, event_bus: &mut EventBus) {
-    // game.messages.add(format!("{} died. It gives you {} xp.", monster.name, monster.fighter.unwrap().xp), ORANGE);
-    monster.char = '%';
-    monster.color = DARK_RED;
-    monster.blocks = false;
-    monster.fighter = None;
-    monster.ai = None;
-    monster.name = format!("remains of {}", monster.name);
-    event_bus.add_event(GameEvent::from_type_with_data(
-        EventType::BossDie,
-        HashMap::from([("position".to_string(), EventData::TupleI32I32(monster.pos()))])
-    ));
-}
-
 
 //TODO spilt xp store for player and drop xp into different values
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -170,30 +156,11 @@ pub struct Fighter {
     on_death: DeathCallback
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-enum DeathCallback {
-    Player,
-    Monster,
-    Boss
-}
-
-impl DeathCallback {
-    fn callback(self, entity: &mut Entity, event_bus: &mut EventBus) {
-        use DeathCallback::*;
-        let callback = match self {
-            Player => player_death,
-            Monster => monster_death,
-            Boss => boss_death,
-        };
-        callback(entity, event_bus);
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Ai {
     Basic,
     Confused {                  // enum values can hold data. Dope
-        previous_ai: Box<Ai>,
+    previous_ai: Box<Ai>,
         num_turns: i32
     },
 }
@@ -818,8 +785,6 @@ fn save_game(game: &mut GameEngine) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[macro_use]
-extern crate lazy_static;
 lazy_static! {
     static ref GAME_CONFIGS: GameConfig = load_configs();
 }

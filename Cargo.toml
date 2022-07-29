@@ -9,7 +9,7 @@ edition = "2018"
 #tcod = "0.15"
 tcod = { git= "https://github.com/tomassedovic/tcod-rs.git", features = ["serialization"]}
 rand = "0.3.9"
-soloud = "1"
+soloud = "1.0.2"
 serde = {version = "1.0", features = ["derive"]}
 serde_json = "1.0"
 #serde_traitobject = "0.2.7"
