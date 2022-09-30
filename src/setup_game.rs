@@ -4,7 +4,10 @@ use std::fs::File;
 use std::io::Read;
 use tcod::{BackgroundFlag, Console, TextAlignment};
 use tcod::colors::{DARK_RED, RED, SKY, WHITE};
-use crate::{AudioEventProcessor, Camera, Entity, Equipment, EventBus, EventLogProcessor, Fighter, GameEngine, GameOccurrenceEventProcessor, initialize_fov, Item, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, PLAYER, run_game_loop, SCREEN_HEIGHT, SCREEN_WIDTH, Slot, Tcod};
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, Item, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, PLAYER, run_game_loop, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
+use crate::entity::equipment::Equipment;
+use crate::entity::fighter::Fighter;
+use crate::entity::slot::Slot;
 use crate::util::death_callback::DeathCallback;
 
 pub fn main_menu(tcod: &mut Tcod) {

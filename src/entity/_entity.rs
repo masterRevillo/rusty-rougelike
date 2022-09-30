@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
 use tcod::console::{BackgroundFlag, Console};
 use serde::{Deserialize, Serialize};
-use crate::{Ai, Equipment, Fighter, Item, Messages};
+use crate::{Item, Messages};
+use crate::entity::equipment::Equipment;
+use crate::entity::fighter::Fighter;
 use crate::event_processing::game_event_processing::{EventBus, EventData, EventType, GameEvent};
 use crate::graphics::camera::Camera;
 

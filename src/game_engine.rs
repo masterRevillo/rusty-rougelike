@@ -3,7 +3,7 @@ use tcod::{BackgroundFlag, Console, TextAlignment};
 use tcod::colors::{BLACK, DARKER_RED, LIGHT_GREEN, LIGHT_GREY, WHITE};
 use tcod::console::blit;
 use crate::{AudioEventProcessor, BAR_WIDTH, Camera, Entity, EventBus, EventProcessor, FOV_ALGO, FOV_LIGHT_WALLS, GameConfig, GameEvent, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, MSG_HEIGHT, MSG_WIDTH, MSG_X, PANEL_HEIGHT, PANEL_Y, PLAYER, SCREEN_WIDTH, Tcod, TORCH_RADIUS};
-use crate::map::Map;
+use crate::map::mapgen::Map;
 use crate::audio::audio_engine::AudioEngine;
 use serde::{Deserialize, Serialize};
 use crate::graphics::render_functions::{get_names_under_mouse, render_bar};

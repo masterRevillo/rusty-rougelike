@@ -2,8 +2,11 @@ use std::borrow::BorrowMut;
 use std::cmp;
 use rand::Rng;
 use tcod::colors::{DARK_CRIMSON, DARK_ORANGE, DARKER_AMBER, DARKER_AZURE, DESATURATED_GREEN, GOLD, LIGHT_RED, LIGHT_YELLOW, LIGHTEST_SEPIA, LIGHTEST_YELLOW, SKY, VIOLET, WHITE};
-use crate::{Ai, Entity, Equipment, Fighter, from_dungeon_level, GameEngine, IndependentSample, is_blocked, Item, PLAYER, Slot, Transition, Weighted, WeightedChoice};
-use crate::tile::Tile;
+use crate::{Entity, from_dungeon_level, GameEngine, IndependentSample, is_blocked, Item, PLAYER, Transition, Weighted, WeightedChoice};
+use crate::entity::equipment::Equipment;
+use crate::entity::fighter::Fighter;
+use crate::entity::slot::Slot;
+use crate::map::tile::Tile;
 use crate::util::death_callback::DeathCallback;
 use crate::util::namegen;
 

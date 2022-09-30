@@ -3,10 +3,10 @@ use std::borrow::Borrow;
 use serde::{Deserialize, Serialize};
 use tcod::colors::WHITE;
 use crate::event_processing::game_event_processing::EventBusReader;
-use crate::map::{Map};
+use crate::map::mapgen::{Map};
 use crate::{EventData, EventProcessor, GameEvent, EventType};
-use crate::entity::Entity;
-use crate::tile::Tile;
+use crate::entity::_entity::Entity;
+use crate::map::tile::Tile;
 
 #[derive(Serialize, Deserialize)]
 pub struct GameOccurrenceEventProcessor {

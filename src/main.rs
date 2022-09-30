@@ -25,18 +25,20 @@ use event_processing::audio_event_processor::AudioEventProcessor;
 use event_processing::event_log_processor::EventLogProcessor;
 use event_processing::game_occurrence::GameOccurrenceEventProcessor;
 use util::death_callback::DeathCallback;
+use util::messages::Messages;
 
 use crate::graphics::camera::Camera;
 use crate::config::game_config::{GameConfig, load_configs};
-use crate::entity::Entity;
+use entity::_entity::Entity;
 use crate::event_processing::game_event_processing::{EventBus, EventData, EventProcessor, EventType, GameEvent};
 use crate::framework::Tcod;
 use crate::game_engine::GameEngine;
-use crate::map::{in_map_bounds, LEVEL_TYPE_TRANSITION, make_boss_map, make_map, MAP_HEIGHT, MAP_WIDTH};
-use crate::map::Map;
+use map::mapgen::{in_map_bounds, LEVEL_TYPE_TRANSITION, make_boss_map, make_map, MAP_HEIGHT, MAP_WIDTH};
+use map::mapgen::Map;
 use graphics::render_functions::{initialize_fov, inventory_menu, menu, msgbox};
+use crate::entity::slot::Slot;
 use crate::setup_game::main_menu;
-use crate::tile::Tile;
+use crate::map::tile::Tile;
 use crate::util::transition::Transition;
 
 mod event_processing{
@@ -45,13 +47,20 @@ mod event_processing{
     pub mod game_occurrence;
     pub mod event_log_processor;
 }
-mod entity;
+mod entity {
+    pub mod _entity;
+    pub mod fighter;
+    pub mod equipment;
+    pub mod slot;
+}
 mod config {
     pub mod game_config;
 }
-mod map;
-mod tile;
-mod graphics{
+mod map {
+    pub mod mapgen;
+    pub mod tile;
+}
+mod graphics {
     pub mod camera;
     pub mod render_functions;
 }
@@ -67,6 +76,7 @@ mod util {
     pub mod transition;
     pub mod death_callback;
     pub mod namegen;
+    pub mod messages;
 }
 
 
@@ -144,27 +154,6 @@ fn level_up(tcod: &mut Tcod, player: &mut Entity) {
     } 
 }
 
-
-//TODO spilt xp store for player and drop xp into different values
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Fighter {
-    base_max_hp: i32,
-    hp: i32,
-    base_defense: i32,
-    base_power: i32,
-    xp: i32,
-    on_death: DeathCallback
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum Ai {
-    Basic,
-    Confused {                  // enum values can hold data. Dope
-    previous_ai: Box<Ai>,
-        num_turns: i32
-    },
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Item {
     Heal,
@@ -240,90 +229,12 @@ fn move_towards(id: usize, target_x: i32, target_y: i32, map: &Map, entities: &m
     move_by(id, dx, dy, map, entities);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Equipment {
-    slot: Slot,
-    equipped: bool,
-    max_hp_bonus: i32,
-    power_bonus: i32,
-    defense_bonus: i32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-enum Slot {
-    LeftHand,
-    RightHand,
-    Head,
-}
-
-impl std::fmt::Display for Slot {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match *self {
-            Slot::LeftHand => write!(f, "left hand"),
-            Slot::RightHand => write!(f, "right hand"),
-            Slot::Head => write!(f, "head"),
-        }
-    }
-}
-
 fn from_dungeon_level(table: &[Transition], level: u32) -> u32 {
     table
         .iter()
         .rev()
         .find(|transition| level >= transition.level)
         .map_or(0, |transition| transition.value)
-}
-
-fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &mut GameEngine) {
-    use Ai::*;
-    if let Some(ai) = game.entities[monster_id].ai.take() {               // take() removes to the option from Option - it then becomes empty
-        let new_ai = match ai {
-            Basic => ai_basic(monster_id, tcod, game),
-            Confused {
-                previous_ai,
-                num_turns   
-            } => ai_confused(monster_id, tcod, game, previous_ai, num_turns)
-        };
-        game.entities[monster_id].ai = Some(new_ai);                      // the AI is then put back here
-    }
-}
-
-fn ai_basic(monster_id: usize, tcod: &Tcod, game: &mut GameEngine) -> Ai {
-    // a basic ai takes a turn. If you can see it, it can see you
-    let entities: &mut Vec<Entity> = game.entities.borrow_mut();
-    let event_bus = game.event_bus.borrow_mut();
-    let (monster_x, monster_y) = entities[monster_id].pos();
-    if tcod.fov.is_in_fov(monster_x, monster_y) {
-        if entities[monster_id].distance_to(&entities[PLAYER]) >= 2.0 {
-            // move towards player if far away
-            let (player_x, player_y) = entities[PLAYER].pos();
-            move_towards(monster_id, player_x, player_y, &game.map, entities);
-            event_bus.add_event(GameEvent::from_type(EventType::MonsterMove));
-
-        } else {
-            // close enough to start a war
-            let (monster, player) = mut_two(monster_id, PLAYER, entities);
-            monster.attack(player, event_bus);
-            event_bus.add_event(GameEvent::from_type(EventType::MonsterAttack));
-
-        }
-    }
-    Ai::Basic
-}
-
-fn ai_confused(monster_id:usize, _tcod: & Tcod, game: &mut GameEngine, previous_ai: Box<Ai>, num_turns: i32) -> Ai {
-    let x = rand::thread_rng().gen_range(0, MAP_WIDTH);
-    let y = rand::thread_rng().gen_range(0, MAP_HEIGHT);
-    let messages = game.messages.borrow_mut();
-    let map: &Map = game.map.borrow();
-    let entities = game.entities.borrow_mut();
-    move_towards(monster_id, x, y, map, entities);
-    if num_turns == 0 {
-        messages.add(format!("The {} is no longer confused", game.entities[monster_id].name), RED);
-        *previous_ai
-    } else {
-        Ai::Confused{ previous_ai: previous_ai, num_turns: num_turns - 1}
-    }
 }
 
 // Takes 2 indexes of an array and returns the mutable item correspoding to both
@@ -605,27 +516,6 @@ fn target_tile(
             return None;
         }
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Messages {
-    messages: Vec<(String, Color)>
-}
-
-impl Messages {
-    pub fn new() -> Self {
-        Self {messages: vec![]}
-    }
-
-    pub fn add<T: Into<String>>(&mut self, message: T, color: Color) {
-        self.messages.push((message.into(), color))
-    }
-
-    // returns an `impl Trait`. basically, it allows you to specify a return type without explicitly describing the type
-    // The actual return type just needs to implement the trait specified.
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &(String, Color)> {
-        self.messages.iter()
-    }    
 }
 
 fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {

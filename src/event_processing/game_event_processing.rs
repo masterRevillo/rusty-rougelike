@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display};
 use serde::{Deserialize, Serialize};
 use crate::{Entity, Map};
 
