@@ -1,66 +1,72 @@
 use std::any::Any;
+use std::borrow::Borrow;
+use std::collections::HashMap;
 use soloud::*;
 use serde::{Deserialize, Serialize};
 use crate::config::game_config::GameConfig;
 use crate::{Entity, GameEvent, Map};
 
 
-pub struct AudioSample {
-    sample: audio::Wav,
+pub struct PlayableAudio {
+    audio: audio::Wav,
     name: String
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct AudioEngine {
     #[serde(skip)]
-    samples: Vec<AudioSample>,
+    samples: Vec<PlayableAudio>,
     #[serde(skip)]
-    bg: Option<audio::Wav>,
+    bgm: Vec<PlayableAudio>,
     #[serde(skip)]
     player: Option<Soloud>,
-    configs: Box<GameConfig>
+    configs: Box<GameConfig>,
+    base_file_path: &'static str,
+    sample_file_names: HashMap<&'static str, &'static str>,
+    bgm_file_names: HashMap<&'static str, &'static str>
 }
+
 
 impl AudioEngine {
     pub fn new(configs: GameConfig) -> Result<AudioEngine, Box<dyn std::error::Error>> {
         let engine = AudioEngine {
             samples: vec![],
-            bg: None,
+            bgm: vec![],
             player: Some(Soloud::default()?),
-            configs: Box::new(configs)
+            configs: Box::new(configs),
+            base_file_path: "assets/audio/",
+            sample_file_names: HashMap::from([
+                ("punch", "punch.wav"),
+                ("monster1", "monster1.wav"),
+                ("monster_die1", "monster_die1.mp3"),
+                ("pick", "pick.wav"),
+            ]),
+            bgm_file_names: HashMap::from([
+                ("ambient-metal", "ambient-metal.wav"),
+            ]),
         };
         Ok(engine)
     }
 
     pub fn load_samples(&mut self) {
-        let mut punch = audio::Wav::default();
-        punch.load(&std::path::Path::new("assets/audio/punch.wav"));
-        self.add_sample(AudioSample{sample: punch, name: "punch".to_string()});
+        let samples = &mut self.samples;
+        let sample_file_names = &self.sample_file_names;
+        let bgm = &mut self.bgm;
+        let bgm_file_names = &self.bgm_file_names;
+        let base_file_path = &self.base_file_path.to_string();
 
-        let mut monster1 = audio::Wav::default();
-        monster1.load(&std::path::Path::new("assets/audio/monster1.wav"));
-        self.add_sample(AudioSample{sample: monster1, name: "monster1".to_string()});
+        sample_file_names.iter().for_each(|e| {
+                let mut sample = audio::Wav::default();
+                sample.load(&std::path::Path::new((base_file_path.to_owned() + e.1).as_str()));
+                samples.push(PlayableAudio{audio: sample, name: String::from(e.0.to_string())});
+            }
+        );
 
-        let mut monster_die1 = audio::Wav::default();
-        monster_die1.load(&std::path::Path::new("assets/audio/monster_die1.mp3"));
-        self.add_sample(AudioSample{sample: monster_die1, name: "monster_die1".to_string()});
-
-        let mut pick = audio::Wav::default();
-        pick.load(&std::path::Path::new("assets/audio/pick.wav"));
-        self.add_sample(AudioSample{sample: pick, name: "pick".to_string()});
-
-        let mut bg = audio::Wav::default();
-        bg.load(&std::path::Path::new("ambient-metal.wav"));
-
-        self.set_bg(bg);
-    }
-
-    pub fn set_bg(&mut self, bg: audio::Wav) {
-        self.bg = Some(bg);
-    }
-
-    pub fn add_sample(&mut self, sample: AudioSample) {
-        self.samples.push(sample);
+        bgm_file_names.iter().for_each(|e|{
+            let mut audio = audio::Wav::default();
+            audio.load(&std::path::Path::new((base_file_path.to_owned() + e.1).as_str()));
+            bgm.push(PlayableAudio{audio, name: String::from(e.0.to_string())});
+        });
     }
 
     pub fn play_sfx(&self, sfx_name: String) {
@@ -72,7 +78,7 @@ impl AudioEngine {
             Some(s) => {
                 if let Some(pl) = self.player.as_ref() {
                     let _handle = pl.play_ex(
-                        &s.sample,
+                        &s.audio,
                         self.configs.sfx_volume, 0.0, false, Handle::PRIMARY
                     );
                 }
@@ -80,15 +86,16 @@ impl AudioEngine {
         };
     }
 
-    pub fn play_bg(&mut self) {
+    pub fn play_bg(&mut self, bgm_name: String) {
         if !self.configs.play_bgm {return;}
-        match &self.bg {
+        let audio = self.bgm.iter().find(|a| a.name.eq(&bgm_name));
+        match audio {
             None => log::warn!("no bgm to play"),
             Some(bg) => {
                 if let Some(pl) = self.player.as_mut() {
                     log::debug!("about to play bg music");
                     let handle = pl.play_background_ex(
-                        bg,
+                        &bg.audio,
                         self.configs.bgm_volume, false, Handle::PRIMARY
                     );
                     pl.set_looping(handle, true);

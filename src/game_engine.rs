@@ -46,7 +46,7 @@ impl GameEngine {
             .find(|p| p.get_id() == "audio_event_processor")
             .map(|p| if let Some(aep) = p.as_any_mut().downcast_mut::<AudioEventProcessor>() {
                 if let Some(ae) = aep.audio_engine.as_mut() {
-                    ae.play_bg();
+                    ae.play_bg("ambient-metal".to_string());
                 }
             });
     }
