@@ -7,6 +7,7 @@ use crate::entity::equipment::Equipment;
 use crate::entity::fighter::Fighter;
 use crate::entity::slot::Slot;
 use crate::map::tile::Tile;
+use crate::util::ai::Ai;
 use crate::util::death_callback::DeathCallback;
 use crate::util::namegen;
 

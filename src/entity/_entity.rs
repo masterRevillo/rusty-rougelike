@@ -9,6 +9,7 @@ use crate::entity::equipment::Equipment;
 use crate::entity::fighter::Fighter;
 use crate::event_processing::game_event_processing::{EventBus, EventData, EventType, GameEvent};
 use crate::graphics::camera::Camera;
+use crate::util::ai::Ai;
 
 /// This is a generic object: the player, a monster, an item, the stairs...
 /// It's always represented by a character on screen.

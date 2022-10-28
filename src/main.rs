@@ -39,6 +39,8 @@ use graphics::render_functions::{initialize_fov, inventory_menu, menu, msgbox};
 use crate::entity::slot::Slot;
 use crate::setup_game::main_menu;
 use crate::map::tile::Tile;
+use crate::util::ai::Ai;
+use crate::util::ai::ai_take_turn;
 use crate::util::transition::Transition;
 
 mod event_processing{
@@ -73,6 +75,7 @@ mod audio {
     pub mod audio_engine;
 }
 mod util {
+    pub mod ai;
     pub mod transition;
     pub mod death_callback;
     pub mod namegen;

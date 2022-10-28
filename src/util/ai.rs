@@ -1,4 +1,13 @@
+use std::borrow::{Borrow, BorrowMut};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
+use tcod::colors::RED;
+use crate::entity::_entity::Entity;
+use crate::framework::Tcod;
+use crate::game_engine::GameEngine;
+use crate::{move_towards, mut_two, PLAYER};
+use crate::event_processing::game_event_processing::{EventType, GameEvent};
+use crate::map::mapgen::{Map, MAP_HEIGHT, MAP_WIDTH};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Ai {
@@ -9,7 +18,7 @@ pub enum Ai {
     },
 }
 
-fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &mut GameEngine) {
+pub fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &mut GameEngine) {
     use Ai::*;
     if let Some(ai) = game.entities[monster_id].ai.take() {               // take() removes to the option from Option - it then becomes empty
         let new_ai = match ai {
