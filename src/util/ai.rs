@@ -2,11 +2,12 @@ use std::borrow::{Borrow, BorrowMut};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tcod::colors::RED;
-use crate::entity::_entity::Entity;
+use crate::entities::entity::Entity;
 use crate::framework::Tcod;
 use crate::game_engine::GameEngine;
-use crate::{move_towards, mut_two, PLAYER};
-use crate::event_processing::game_event_processing::{EventType, GameEvent};
+use crate::{mut_two, PLAYER};
+use crate::entities::entity_actions::move_towards;
+use crate::events::game_event_processing::{EventType, GameEvent};
 use crate::map::mapgen::{Map, MAP_HEIGHT, MAP_WIDTH};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

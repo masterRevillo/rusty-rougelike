@@ -6,7 +6,7 @@ use soloud::*;
 use crate::{Entity, GameEvent, Map};
 use crate::audio::audio_engine::AudioEngine;
 use crate::config::game_config::GameConfig;
-use crate::event_processing::game_event_processing::{EventBusReader, EventProcessor, EventType};
+use crate::events::game_event_processing::{EventBusReader, EventProcessor, EventType};
 
 #[derive(Serialize, Deserialize)]
 pub struct AudioEventProcessor {

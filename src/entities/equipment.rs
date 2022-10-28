@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::entity::slot::Slot;
+use crate::entities::slot::Slot;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Equipment {

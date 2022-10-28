@@ -2,10 +2,10 @@ use std::any::Any;
 use std::borrow::Borrow;
 use serde::{Deserialize, Serialize};
 use tcod::colors::WHITE;
-use crate::event_processing::game_event_processing::EventBusReader;
+use crate::events::game_event_processing::EventBusReader;
 use crate::map::mapgen::{Map};
 use crate::{EventData, EventProcessor, GameEvent, EventType};
-use crate::entity::_entity::Entity;
+use crate::entities::entity::Entity;
 use crate::map::tile::Tile;
 
 #[derive(Serialize, Deserialize)]

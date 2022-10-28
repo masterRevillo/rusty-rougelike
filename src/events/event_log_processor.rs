@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::borrow::Borrow;
 use serde::{Deserialize, Serialize};
-use crate::event_processing::game_event_processing::EventBusReader;
+use crate::events::game_event_processing::EventBusReader;
 use crate::{EventProcessor, GameEvent, Map, EventType, Entity};
 
 #[derive(Serialize, Deserialize)]

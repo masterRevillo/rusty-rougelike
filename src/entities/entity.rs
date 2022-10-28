@@ -5,9 +5,9 @@ use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
 use tcod::console::{BackgroundFlag, Console};
 use serde::{Deserialize, Serialize};
 use crate::{Item, Messages};
-use crate::entity::equipment::Equipment;
-use crate::entity::fighter::Fighter;
-use crate::event_processing::game_event_processing::{EventBus, EventData, EventType, GameEvent};
+use crate::entities::equipment::Equipment;
+use crate::entities::fighter::Fighter;
+use crate::events::game_event_processing::{EventBus, EventData, EventType, GameEvent};
 use crate::graphics::camera::Camera;
 use crate::util::ai::Ai;
 
