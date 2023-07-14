@@ -1,10 +1,10 @@
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 use tcod::{BackgroundFlag, Console, TextAlignment};
 use tcod::colors::{DARK_RED, RED, SKY, WHITE};
-use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, Item, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, PLAYER, run_game_loop, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, Item, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, PLAYER, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod, run_game_loop};
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
@@ -72,7 +72,7 @@ pub fn new_game(tcod: &mut Tcod) -> GameEngine {
         on_death: DeathCallback::Player
     });
 
-    let mut entities = vec![player];
+    let entities = vec![player];
 
     let mut game = GameEngine {
         map: vec![vec![]],
@@ -116,4 +116,12 @@ pub fn new_game(tcod: &mut Tcod) -> GameEngine {
     );
 
     game
+}
+
+// return type is a result, which can either be a success, or a type that implements the error type.
+pub fn save_game(game: &mut GameEngine) -> Result<(), Box<dyn Error>> {
+    let save_data = serde_json::to_string(&game)?;       // the ? gets the success value, or returns immediately with the error type
+    let mut file = File::create("savegame")?;
+    file.write_all(save_data.as_bytes())?;
+    Ok(())
 }

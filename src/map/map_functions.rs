@@ -3,7 +3,8 @@ use crate::entities::entity::Entity;
 use crate::framework::Tcod;
 use crate::game_engine::GameEngine;
 use crate::map::mapgen::{LEVEL_TYPE_TRANSITION, make_boss_map, make_map, Map};
-use crate::{FOV_ALGO, FOV_LIGHT_WALLS, from_dungeon_level, PLAYER, target_tile, TORCH_RADIUS};
+use crate::{FOV_ALGO, FOV_LIGHT_WALLS, from_dungeon_level, PLAYER,  TORCH_RADIUS};
+use crate::entities::entity_actions::target_tile;
 use crate::graphics::render_functions::initialize_fov;
 
 pub fn is_blocked(x: i32, y: i32, map: &Map, entity: &[Entity]) -> bool {

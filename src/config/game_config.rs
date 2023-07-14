@@ -11,7 +11,7 @@ pub struct GameConfig {
 
 pub fn load_configs() -> GameConfig {
     let mut config = Ini::new();
-    config.load("properties.ini");
+    let _ = config.load("properties.ini");
     GameConfig {
         play_sfx: config.getbool("audio", "play_sfx").unwrap().unwrap_or(true),
         sfx_volume: config.getfloat("audio", "sfx_volume").unwrap().unwrap_or(0.0) as f32,

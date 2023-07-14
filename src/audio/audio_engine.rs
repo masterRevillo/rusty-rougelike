@@ -1,10 +1,7 @@
-use std::any::Any;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use soloud::*;
 use serde::{Deserialize, Serialize};
 use crate::config::game_config::GameConfig;
-use crate::{Entity, GameEvent, Map};
 
 
 pub struct PlayableAudio {
@@ -57,14 +54,14 @@ impl AudioEngine {
 
         sample_file_names.iter().for_each(|e| {
                 let mut sample = audio::Wav::default();
-                sample.load(&std::path::Path::new((base_file_path.to_owned() + e.1).as_str()));
+                let _ = sample.load(&std::path::Path::new((base_file_path.to_owned() + e.1).as_str()));
                 samples.push(PlayableAudio{audio: sample, name: String::from(e.0.to_string())});
             }
         );
 
         bgm_file_names.iter().for_each(|e|{
             let mut audio = audio::Wav::default();
-            audio.load(&std::path::Path::new((base_file_path.to_owned() + e.1).as_str()));
+            let _ = audio.load(&std::path::Path::new((base_file_path.to_owned() + e.1).as_str()));
             bgm.push(PlayableAudio{audio, name: String::from(e.0.to_string())});
         });
     }

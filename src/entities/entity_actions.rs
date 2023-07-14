@@ -4,10 +4,12 @@ use tcod::colors::{GREEN, RED};
 use crate::entities::entity::Entity;
 use crate::game_engine::GameEngine;
 use crate::map::mapgen::Map;
-use crate::{mut_two, PLAYER};
+use crate::util::mut_two::mut_two;
+use crate::{PLAYER, MAP_WIDTH, MAP_HEIGHT};
 use crate::events::game_event_processing::{EventData, EventType, GameEvent};
 use crate::inventory::inventory_actions::get_equipped_id_in_slot;
 use crate::map::map_functions::is_blocked;
+use crate::framework::Tcod;
 
 pub fn move_by(id: usize, dx: i32, dy: i32, map: &Map, entity: &mut [Entity]) {
     let (x,y) = entity[id].pos();
@@ -71,4 +73,33 @@ pub fn move_towards(id: usize, target_x: i32, target_y: i32, map: &Map, entities
     let dx = (dx as f32 / distance).round() as i32;
     let dy = (dy as f32 / distance).round() as i32;
     move_by(id, dx, dy, map, entities);
+}
+
+pub fn target_tile(
+    tcod: &mut Tcod,
+    game: &mut GameEngine,
+    max_range: Option<f32>
+) -> Option<(i32, i32)> {
+    use tcod::input::KeyCode::Escape;
+    use tcod::input::{self, Event};
+    loop {
+        tcod.root.flush();
+        let event = input::check_for_event(input::KEY_PRESS | input::MOUSE).map(|e| e.1);
+        match event {
+            Some(Event::Mouse(m)) => tcod.mouse = m,
+            Some(Event::Key(k)) => tcod.key = k,
+            None => tcod.key = Default::default()
+        }
+        game.render_all(tcod, false);
+        let (x, y) = (tcod.mouse.cx as i32, tcod.mouse.cy as i32);
+
+        let in_fov = (x < MAP_WIDTH) && (y < MAP_HEIGHT) && tcod.fov.is_in_fov(x, y);
+        let in_range = max_range.map_or(true, |range| game.entities[PLAYER].distance(x, y) <= range);
+        if tcod.mouse.lbutton_pressed && in_fov && in_range {
+            return Some((x, y))
+        }
+        if tcod.mouse.rbutton_pressed || tcod.key.code == Escape {
+            return None;
+        }
+    }
 }

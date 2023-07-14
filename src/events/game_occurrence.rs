@@ -6,7 +6,6 @@ use crate::events::game_event_processing::EventBusReader;
 use crate::map::mapgen::{Map};
 use crate::{EventData, EventProcessor, GameEvent, EventType};
 use crate::entities::entity::Entity;
-use crate::map::tile::Tile;
 
 #[derive(Serialize, Deserialize)]
 pub struct GameOccurrenceEventProcessor {

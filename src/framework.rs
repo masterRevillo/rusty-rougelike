@@ -1,6 +1,6 @@
 use tcod::console::*;
-use tcod::map::{FovAlgorithm, Map as FovMap};
-use tcod::input::{self, Event, Key, Mouse};
+use tcod::map::{Map as FovMap};
+use tcod::input::{Key, Mouse};
 
 pub struct Tcod {
     pub root: Root,

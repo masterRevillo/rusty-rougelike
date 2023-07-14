@@ -6,7 +6,9 @@ use crate::{AudioEventProcessor, BAR_WIDTH, Camera, Entity, EventBus, EventProce
 use crate::map::mapgen::Map;
 use crate::audio::audio_engine::AudioEngine;
 use serde::{Deserialize, Serialize};
-use crate::graphics::render_functions::{get_names_under_mouse, render_bar};
+use crate::graphics::render_functions::{get_names_under_mouse, render_bar, msgbox, inventory_menu};
+use crate::util::ai::ai_take_turn;
+use crate::{save_game, level_up, STATS_SCREEN_WIDTH, LEVEL_UP_FACTOR, LEVEL_UP_BASE};
 
 #[derive(Serialize, Deserialize)]
 pub struct GameEngine {
@@ -143,5 +145,159 @@ impl GameEngine {
             1.0,
             1.0,
         );
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PlayerAction {
+    TookTurn,
+    DidntTakeTurn,
+    Exit,
+}
+
+pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
+    use tcod::input::KeyCode::*;
+    use tcod::input::Key;
+    use crate::map::map_functions::next_level;
+    use crate::inventory::inventory_actions::{drop_item, use_item};
+    use crate::entities::entity_actions::{pick_item_up, player_move_or_attack};
+    use PlayerAction::*;
+
+    let player_alive = game.entities[PLAYER].alive;
+    match (tcod.key, tcod.key.text(), player_alive) {
+        (Key {code: Enter, alt: true, ..}, _, _,) => {               // the 2 dots signify that we dont care about the other values of Key. Without them, the code wouldnt compile until all values were supplied
+            let fullscreen = tcod.root.is_fullscreen();
+            tcod.root.set_fullscreen(!fullscreen);
+            DidntTakeTurn
+        }
+        (Key { code: Escape, ..}, _, _, )=> return Exit,
+
+        // movement keys
+        (Key { code: Up, .. }, _, true ) | (Key { code: NumPad8, .. }, _, true ) => {
+            player_move_or_attack(0, -1, game);
+            TookTurn
+        },
+        (Key { code: Down, .. }, _, true ) | (Key { code: NumPad2, .. }, _, true ) => {
+            player_move_or_attack(0, 1, game);
+            TookTurn
+        },
+        (Key { code: Left, .. }, _, true ) | (Key { code: NumPad4, .. }, _, true ) => {
+            player_move_or_attack(-1, 0, game);
+            TookTurn
+        },
+        (Key { code: Right, .. }, _, true ) | (Key { code: NumPad6, .. }, _, true ) => {
+            player_move_or_attack(1, 0, game);
+            TookTurn
+        },
+        (Key { code: Home, .. }, _, true ) | (Key { code: NumPad7, .. }, _, true ) => {
+            player_move_or_attack(-1, -1, game);
+            TookTurn
+        },
+        (Key { code: PageUp, .. }, _, true ) | (Key { code: NumPad9, .. }, _, true ) => {
+            player_move_or_attack(1, -1, game);
+            TookTurn
+        },
+        (Key { code: End, .. }, _, true ) | (Key { code: NumPad1, .. }, _, true ) => {
+            player_move_or_attack(-1, 1, game);
+            TookTurn
+        },
+        (Key { code: PageDown, .. }, _, true ) | (Key { code: NumPad3, .. }, _, true ) => {
+            player_move_or_attack(1, 1, game);
+            TookTurn
+        },
+        (Key { code: NumPad5, .. }, _, true ) | (Key { code: Text, .. }, ".", true ) => {
+            TookTurn
+        },
+        (Key { code: Text, .. }, "g", true ) => {
+            let item_id = game.entities.iter().position(|object| object.pos() == game.entities[PLAYER].pos() && object.item.is_some());
+            if let Some(item_id) = item_id {
+                pick_item_up(item_id, game);
+            }
+            DidntTakeTurn
+        },
+        (Key { code: Text, .. }, "i", true ) => {
+            let inventory_selection = inventory_menu(
+                &game.entities[PLAYER].inventory, "Select an item to use by pressing the matching key, or any other to cancel\n",  &mut tcod.root
+            );
+            if let Some(inventory_selection) = inventory_selection {
+                use_item(inventory_selection, tcod, game);
+            }
+            DidntTakeTurn
+        },
+        (Key {code: Text, ..}, "d", true ) => {
+            let inventory_selection = inventory_menu(
+                &game.entities[PLAYER].inventory, "Select an item you want to drop by pressing the matching key, or any other to cancel\n", &mut tcod.root
+            );
+            if let Some(inventory_selection) = inventory_selection {
+                drop_item(inventory_selection, game);
+            }
+            DidntTakeTurn
+        },
+        (Key {code: Text, ..}, "<", true) => {
+            let player_on_stairs = game.entities
+            .iter()
+            .any(|object| object.pos() == game.entities[PLAYER].pos() && object.name == "stairs");
+            if player_on_stairs {
+                next_level(tcod, game);
+            }
+            DidntTakeTurn
+        },
+        (Key {code: Text, ..}, "c", true) => {
+            let player = &game.entities[PLAYER];
+            let level = player.level;
+            let level_up_xp = LEVEL_UP_BASE + level * LEVEL_UP_FACTOR;
+            if let Some(fighter) = player.fighter.as_ref() {
+                let msg = format!(
+                    "Player stats: \n Level: {}\nExperience: {}\nExperience to level up: {}\n\nMaximum HP: {}\nAttack: {}\nbase_Defense: {}",
+                    level, fighter.xp, level_up_xp, player.max_hp(), player.power(), player.defense()
+                );
+                msgbox(&msg, STATS_SCREEN_WIDTH, &mut tcod.root);
+
+            }
+            DidntTakeTurn
+        }
+        _ => DidntTakeTurn // everything else
+    }
+
+}
+
+pub fn run_game_loop(tcod: &mut Tcod, game: &mut GameEngine) {
+    use tcod::input::{self, Event};
+    // for FOV recompute by setting player position to a weird value
+    let mut previous_player_position = (-1, -1);
+
+    while !tcod.root.window_closed() {
+        // clear offscreen console before drawing anything
+        tcod.con.clear();
+
+        match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
+            Some((_, Event::Mouse(m))) => tcod.mouse = m,
+            Some((_, Event::Key(k))) => tcod.key = k,
+            _ => tcod.key = Default::default(),
+        }
+
+        let fov_recompute = previous_player_position != (game.entities[PLAYER].pos());
+
+        game.render_all(tcod, fov_recompute);
+
+        tcod.root.flush();
+
+        level_up(tcod, game.entities[PLAYER].borrow_mut());
+
+        previous_player_position = game.entities[PLAYER].pos();
+        let player_action = handle_keys(tcod, game);
+        if player_action == PlayerAction::Exit {
+            save_game(game).unwrap();
+            break;
+        }
+        game.process_events();
+
+        if game.entities[PLAYER].alive && player_action != PlayerAction::DidntTakeTurn {
+            for id in 0..game.entities.len() {
+                if game.entities[id].ai.is_some() {
+                    ai_take_turn(id, &tcod, game)
+                }
+            }
+        }
     }
 }
