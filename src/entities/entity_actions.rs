@@ -1,15 +1,17 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
+
 use tcod::colors::{GREEN, RED};
+
+use crate::{MAP_HEIGHT, MAP_WIDTH};
 use crate::entities::entity::Entity;
-use crate::game_engine::GameEngine;
-use crate::map::mapgen::Map;
-use crate::util::mut_two::mut_two;
-use crate::{PLAYER, MAP_WIDTH, MAP_HEIGHT};
 use crate::events::game_event_processing::{EventData, EventType, GameEvent};
+use crate::framework::Tcod;
+use crate::game_engine::{GameEngine, PLAYER};
 use crate::inventory::inventory_actions::get_equipped_id_in_slot;
 use crate::map::map_functions::is_blocked;
-use crate::framework::Tcod;
+use crate::map::mapgen::Map;
+use crate::util::mut_two::mut_two;
 
 pub fn move_by(id: usize, dx: i32, dy: i32, map: &Map, entity: &mut [Entity]) {
     let (x,y) = entity[id].pos();
@@ -22,7 +24,7 @@ pub fn player_move_or_attack(dx: i32, dy: i32, game: &mut GameEngine) {
     let x = game.entities[PLAYER].x + dx;
     let y = game.entities[PLAYER].y + dy;
 
-    let map: &Map = game.map.borrow();
+    let map: &Map = &game.map;
     let entities: &mut Vec<Entity> = game.entities.borrow_mut();
     let event_bus = game.event_bus.borrow_mut();
 

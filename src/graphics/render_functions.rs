@@ -1,8 +1,20 @@
-use tcod::colors::{DARKER_SEPIA, WHITE};
 use tcod::{BackgroundFlag, Color, Console, TextAlignment};
+use tcod::colors::{DARKER_SEPIA, WHITE};
 use tcod::console::{blit, Offscreen, Root};
 use tcod::input::Mouse;
-use crate::{Entity, FovMap, INVENTORY_WIDTH, Map, MAP_HEIGHT, MAP_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
+
+use crate::{Entity, FovMap, Map, MAP_HEIGHT, MAP_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
+
+pub const INVENTORY_WIDTH: i32 = 50;
+
+
+pub const BAR_WIDTH: i32 = 20;
+pub const PANEL_HEIGHT: i32 = 7;
+pub const PANEL_Y: i32 = SCREEN_HEIGHT - PANEL_HEIGHT;
+
+pub const MSG_X: i32 = BAR_WIDTH + 2;
+pub const MSG_WIDTH: i32 = SCREEN_WIDTH - BAR_WIDTH - 2;
+pub const MSG_HEIGHT: usize = PANEL_HEIGHT as usize - 1;
 
 pub fn initialize_fov(tcod: &mut Tcod, map: &Map) {
     for y in 0..MAP_HEIGHT as usize {

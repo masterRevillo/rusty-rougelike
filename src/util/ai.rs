@@ -1,15 +1,16 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::BorrowMut;
+
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tcod::colors::RED;
+
 use crate::entities::entity::Entity;
-use crate::framework::Tcod;
-use crate::game_engine::GameEngine;
-use crate::util::mut_two::mut_two;
-use crate::PLAYER;
 use crate::entities::entity_actions::move_towards;
 use crate::events::game_event_processing::{EventType, GameEvent};
+use crate::framework::Tcod;
+use crate::game_engine::{GameEngine, PLAYER};
 use crate::map::mapgen::{Map, MAP_HEIGHT, MAP_WIDTH};
+use crate::util::mut_two::mut_two;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Ai {
@@ -61,7 +62,7 @@ fn ai_confused(monster_id:usize, _tcod: & Tcod, game: &mut GameEngine, previous_
     let x = rand::thread_rng().gen_range(0, MAP_WIDTH);
     let y = rand::thread_rng().gen_range(0, MAP_HEIGHT);
     let messages = game.messages.borrow_mut();
-    let map: &Map = game.map.borrow();
+    let map: &Map = &game.map;
     let entities = game.entities.borrow_mut();
     move_towards(monster_id, x, y, map, entities);
     if num_turns == 0 {

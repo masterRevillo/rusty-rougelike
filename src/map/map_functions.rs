@@ -1,9 +1,8 @@
 use tcod::colors::{RED, VIOLET};
 use crate::entities::entity::Entity;
 use crate::framework::Tcod;
-use crate::game_engine::GameEngine;
-use crate::map::mapgen::{LEVEL_TYPE_TRANSITION, make_boss_map, make_map, Map};
-use crate::{FOV_ALGO, FOV_LIGHT_WALLS, from_dungeon_level, PLAYER,  TORCH_RADIUS};
+use crate::game_engine::{FOV_ALGO, FOV_LIGHT_WALLS, GameEngine, PLAYER, TORCH_RADIUS};
+use crate::map::mapgen::{from_dungeon_level, LEVEL_TYPE_TRANSITION, make_boss_map, make_map, Map};
 use crate::entities::entity_actions::target_tile;
 use crate::graphics::render_functions::initialize_fov;
 
@@ -41,7 +40,7 @@ pub fn closest_monster(tcod: &Tcod, game: &mut GameEngine, max_range: i32) -> Op
             let dist = game.entities[PLAYER].distance_to(object);
             if dist < closest_dist {
                 closest_enemy = Some(id);
-                closest_dist = dist;
+            closest_dist = dist;
             }
         }
     }

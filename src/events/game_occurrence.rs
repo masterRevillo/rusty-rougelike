@@ -1,11 +1,12 @@
 use std::any::Any;
-use std::borrow::Borrow;
+
 use serde::{Deserialize, Serialize};
 use tcod::colors::WHITE;
-use crate::events::game_event_processing::EventBusReader;
-use crate::map::mapgen::{Map};
-use crate::{EventData, EventProcessor, GameEvent, EventType};
+
+use crate::{EventData, EventProcessor, EventType, GameEvent};
 use crate::entities::entity::Entity;
+use crate::events::game_event_processing::EventBusReader;
+use crate::map::mapgen::Map;
 
 #[derive(Serialize, Deserialize)]
 pub struct GameOccurrenceEventProcessor {
@@ -25,7 +26,7 @@ impl EventProcessor for GameOccurrenceEventProcessor {
     fn process(&mut self, _map: &mut Map, entities: &mut Vec<Entity>, event_bus: &Vec<GameEvent>, max_events: usize, bus_tail: usize) {
         use EventType::*;
         if self.event_bus_reader.head != bus_tail {
-            let event: &GameEvent = event_bus[self.event_bus_reader.head].borrow();
+            let event: &GameEvent = &event_bus[self.event_bus_reader.head];
             match event.event_type {
                 BossDie => {
                     let event_data = event.data.get("position");

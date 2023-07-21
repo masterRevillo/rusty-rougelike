@@ -1,8 +1,8 @@
 use std::any::Any;
-use std::borrow::Borrow;
 use serde::{Deserialize, Serialize};
+
+use crate::{Entity, EventProcessor, EventType, GameEvent, Map};
 use crate::events::game_event_processing::EventBusReader;
-use crate::{EventProcessor, GameEvent, Map, EventType, Entity};
 
 #[derive(Serialize, Deserialize)]
 pub struct EventLogProcessor {
@@ -22,7 +22,7 @@ impl EventProcessor for EventLogProcessor {
     fn process(&mut self, _map: &mut Map, _entities: &mut Vec<Entity>, event_bus: &Vec<GameEvent>, max_events: usize, bus_tail: usize) {
         use EventType::*;
         if self.event_bus_reader.head != bus_tail {
-            let event: &GameEvent = event_bus[self.event_bus_reader.head].borrow();
+            let event: &GameEvent = &event_bus[self.event_bus_reader.head];
             match event.event_type {
                 EntityAttacked => {
                     let data_map = event.get_data_as_flat_hashmap();

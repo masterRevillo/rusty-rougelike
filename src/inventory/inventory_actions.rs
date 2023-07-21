@@ -1,11 +1,11 @@
 use std::borrow::BorrowMut;
 use tcod::colors::{DARK_RED, GOLD, LIGHT_BLUE, LIGHT_CYAN, LIGHT_GREEN, ORANGE, RED, WHITE, YELLOW};
 use crate::framework::Tcod;
-use crate::game_engine::GameEngine;
-use crate::{CONFUSE_NUM_TURNS, CONFUSE_RANGE, FIREBALL_DAMAGE, FIREBALL_RADIUS, HEAL_AMOUNT, Item, LIGHTNING_DAMAGE, LIGHTNING_RANGE, PLAYER,  UseResult};
+use crate::game_engine::{GameEngine, PLAYER};
 use crate::entities::entity::Entity;
 use crate::entities::entity_actions::target_tile;
 use crate::entities::slot::Slot;
+use crate::items::item::*;
 use crate::map::map_functions::{closest_monster, target_monster};
 use crate::util::ai::Ai;
 

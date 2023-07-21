@@ -2,10 +2,12 @@ use std::borrow::BorrowMut;
 use std::cmp;
 use rand::Rng;
 use tcod::colors::{DARK_CRIMSON, DARK_ORANGE, DARKER_AMBER, DARKER_AZURE, DESATURATED_GREEN, GOLD, LIGHT_RED, LIGHT_YELLOW, LIGHTEST_SEPIA, LIGHTEST_YELLOW, SKY, VIOLET, WHITE};
-use crate::{Entity, from_dungeon_level, GameEngine, IndependentSample, Item, PLAYER, Transition, Weighted, WeightedChoice};
+use crate::{Entity, GameEngine, IndependentSample, Transition, Weighted, WeightedChoice};
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
+use crate::game_engine::PLAYER;
+use crate::items::item::Item;
 use crate::map::map_functions::is_blocked;
 use crate::map::tile::Tile;
 use crate::util::ai::Ai;
@@ -359,4 +361,12 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Entity>, level: u32) {
             objects.push(item);
         }
     }
+}
+
+pub fn from_dungeon_level(table: &[Transition], level: u32) -> u32 {
+    table
+        .iter()
+        .rev()
+        .find(|transition| level >= transition.level)
+        .map_or(0, |transition| transition.value)
 }

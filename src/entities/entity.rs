@@ -4,11 +4,12 @@ use std::collections::HashMap;
 use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
 use tcod::console::{BackgroundFlag, Console};
 use serde::{Deserialize, Serialize};
-use crate::{Item, Messages};
+use crate::Messages;
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
 use crate::events::game_event_processing::{EventBus, EventData, EventType, GameEvent};
 use crate::graphics::camera::Camera;
+use crate::items::item::Item;
 use crate::util::ai::Ai;
 
 /// This is a generic object: the player, a monster, an item, the stairs...

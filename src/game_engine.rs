@@ -1,20 +1,35 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::BorrowMut;
+
+use serde::{Deserialize, Serialize};
 use tcod::{BackgroundFlag, Console, TextAlignment};
 use tcod::colors::{BLACK, DARKER_RED, LIGHT_GREEN, LIGHT_GREY, WHITE};
 use tcod::console::blit;
-use crate::{AudioEventProcessor, BAR_WIDTH, Camera, Entity, EventBus, EventProcessor, FOV_ALGO, FOV_LIGHT_WALLS, GameConfig, GameEvent, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, MSG_HEIGHT, MSG_WIDTH, MSG_X, PANEL_HEIGHT, PANEL_Y, PLAYER, SCREEN_WIDTH, Tcod, TORCH_RADIUS};
-use crate::map::mapgen::Map;
+use tcod::map::FovAlgorithm;
+
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, SCREEN_WIDTH, Tcod};
+use crate::save_game;
 use crate::audio::audio_engine::AudioEngine;
-use serde::{Deserialize, Serialize};
-use crate::graphics::render_functions::{get_names_under_mouse, render_bar, msgbox, inventory_menu};
+use crate::graphics::render_functions::{BAR_WIDTH, get_names_under_mouse, inventory_menu, menu, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, PANEL_HEIGHT, PANEL_Y, render_bar};
+use crate::map::mapgen::Map;
 use crate::util::ai::ai_take_turn;
-use crate::{save_game, level_up, STATS_SCREEN_WIDTH, LEVEL_UP_FACTOR, LEVEL_UP_BASE};
+
+//fov settings
+pub const FOV_ALGO: FovAlgorithm = FovAlgorithm::Basic;
+pub const FOV_LIGHT_WALLS: bool = true;
+pub const TORCH_RADIUS: i32 = 10;
+
+pub const PLAYER: usize = 0;
+
+//parameters for leveling up
+pub const LEVEL_UP_BASE: i32 = 200;
+pub const LEVEL_UP_FACTOR: i32 = 150;
+pub const LEVEL_SCREEN_WIDTH: i32 = 40;
+pub const STATS_SCREEN_WIDTH: i32 = 30;
 
 #[derive(Serialize, Deserialize)]
 pub struct GameEngine {
     pub map: Map,
     pub messages: Messages,
-    //TODO: move inventory out of the game struct
     pub dungeon_level: u32,
     pub event_bus: EventBus,
     pub event_processors: Vec<Box<dyn EventProcessor>>,
@@ -58,11 +73,11 @@ impl GameEngine {
         let messages = self.messages.borrow_mut();
         let dungeon_level = self.dungeon_level;
         let camera = self.camera.borrow_mut();
-        let player = self.entities[PLAYER].borrow();
+        let player = & self.entities[PLAYER];
         camera.update(player);
 
         if fov_recompute {
-            let player = self.entities[PLAYER].borrow();
+            let player = &self.entities[PLAYER];
             tcod.fov.compute_fov(player.x, player.y, TORCH_RADIUS, FOV_LIGHT_WALLS, FOV_ALGO)
         }
         let entities: &mut Vec<Entity> = self.entities.borrow_mut();
@@ -301,3 +316,42 @@ pub fn run_game_loop(tcod: &mut Tcod, game: &mut GameEngine) {
         }
     }
 }
+
+fn level_up(tcod: &mut Tcod, player: &mut Entity) {
+    let level_up_xp = LEVEL_UP_BASE + LEVEL_UP_FACTOR * player.level;
+    if player.fighter.as_ref().map_or(0, |f| f.xp) >= level_up_xp {
+        player.level += 1;
+        //TODO add message back in:
+        // game.messages.add(format!("Your experience has increased. You are now level {}!", player.level), YELLOW);
+        let fighter = player.fighter.as_mut().unwrap();
+        let mut choice = None;
+        while choice.is_none() {
+            choice = menu(
+                "Level up! Choose a stat to increase: \n",
+                &[
+                    format!("Constitution (+20 HP, from {})", fighter.base_max_hp),
+                    format!("Strength (+1 attack, from {})", fighter.base_power),
+                    format!("Agility (+1 defense, from {})", fighter.base_defense),
+                ],
+                LEVEL_SCREEN_WIDTH,
+                &mut tcod.root
+            )
+        }
+        tcod.root.flush();
+        fighter.xp -= level_up_xp;
+        match choice.unwrap() {
+            0 => {
+                fighter.base_max_hp += 20;
+                fighter.hp += 20;
+            }
+            1 => {
+                fighter.base_power += 1;
+            }
+            2 => {
+                fighter.base_defense += 1;
+            }
+            _ => unreachable!()
+        }
+    }
+}
+
