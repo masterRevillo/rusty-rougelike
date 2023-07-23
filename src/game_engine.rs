@@ -34,7 +34,9 @@ pub struct GameEngine {
     pub event_bus: EventBus,
     pub event_processors: Vec<Box<dyn EventProcessor>>,
     pub entities: Vec<Entity>,
-    pub camera: Camera
+    pub camera: Camera,
+    #[serde(skip)]
+    pub input_handler: Box<InputHandler>
 }
 
 impl GameEngine {
@@ -170,6 +172,35 @@ pub enum PlayerAction {
     Exit,
 }
 
+#[derive(Serialize, Deserialize)]
+pub enum HandlerType {
+    Main
+}
+
+pub struct InputHandler {
+    pub handler_type: HandlerType,
+    pub handle_input: &'static dyn Fn(&mut Tcod, &mut GameEngine) -> PlayerAction
+}
+
+impl InputHandler {
+    pub fn main() -> Self {
+        InputHandler {
+            handler_type: HandlerType::Main,
+            handle_input: &handle_keys
+        }
+    }
+}
+
+use std::borrow::Borrow;
+impl Default for InputHandler {
+    fn default() -> Self {
+        InputHandler {
+            handler_type: HandlerType::Main,
+            handle_input: &{ | _: &mut _, _:&mut _ | PlayerAction::DidntTakeTurn }
+        }
+    }
+}
+
 pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
     use tcod::input::KeyCode::*;
     use tcod::input::Key;
@@ -273,7 +304,6 @@ pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
         }
         _ => DidntTakeTurn // everything else
     }
-
 }
 
 pub fn run_game_loop(tcod: &mut Tcod, game: &mut GameEngine) {
@@ -300,7 +330,7 @@ pub fn run_game_loop(tcod: &mut Tcod, game: &mut GameEngine) {
         level_up(tcod, game.entities[PLAYER].borrow_mut());
 
         previous_player_position = game.entities[PLAYER].pos();
-        let player_action = handle_keys(tcod, game);
+        let player_action = (game.input_handler.handle_input)(tcod, game);
         if player_action == PlayerAction::Exit {
             save_game(game).unwrap();
             break;
