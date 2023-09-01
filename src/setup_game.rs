@@ -10,7 +10,7 @@ use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, Ga
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
-use crate::game_engine::{InputHandler, PLAYER};
+use crate::game_engine::{GameState, PLAYER};
 use crate::items::item::Item;
 use crate::util::death_callback::DeathCallback;
 
@@ -98,7 +98,7 @@ pub fn new_game(tcod: &mut Tcod) -> GameEngine {
             width: SCREEN_WIDTH, height: SCREEN_HEIGHT,
             map_width: MAP_WIDTH, map_height: MAP_HEIGHT
         },
-        input_handler: Box::new(InputHandler::main())
+        game_state: Box::new(GameState::main())
     };
     let map = make_map(game.borrow_mut(), 1);
     game.map = map;

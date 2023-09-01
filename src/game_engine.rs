@@ -3,13 +3,13 @@ use std::borrow::BorrowMut;
 use serde::{Deserialize, Serialize};
 use tcod::{BackgroundFlag, Console, TextAlignment};
 use tcod::colors::{BLACK, DARKER_RED, LIGHT_GREEN, LIGHT_GREY, WHITE};
-use tcod::console::blit;
+use tcod::console::{blit, Root};
 use tcod::map::FovAlgorithm;
 
 use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, SCREEN_WIDTH, Tcod};
 use crate::save_game;
 use crate::audio::audio_engine::AudioEngine;
-use crate::graphics::render_functions::{BAR_WIDTH, get_names_under_mouse, inventory_menu, menu, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, PANEL_HEIGHT, PANEL_Y, render_bar};
+use crate::graphics::render_functions::{BAR_WIDTH, display_menu, get_names_under_mouse, inventory_menu, INVENTORY_WIDTH, menu, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, PANEL_HEIGHT, PANEL_Y, render_bar};
 use crate::map::mapgen::Map;
 use crate::util::ai::ai_take_turn;
 
@@ -36,7 +36,7 @@ pub struct GameEngine {
     pub entities: Vec<Entity>,
     pub camera: Camera,
     #[serde(skip)]
-    pub input_handler: Box<InputHandler>
+    pub game_state: Box<GameState>
 }
 
 impl GameEngine {
@@ -162,6 +162,7 @@ impl GameEngine {
             1.0,
             1.0,
         );
+        (self.game_state.render)(tcod, self)
     }
 }
 
@@ -173,36 +174,69 @@ pub enum PlayerAction {
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum HandlerType {
-    Main
+pub enum StateType {
+    Main,
+    Inventory
 }
 
-pub struct InputHandler {
-    pub handler_type: HandlerType,
-    pub handle_input: &'static dyn Fn(&mut Tcod, &mut GameEngine) -> PlayerAction
+pub struct GameState {
+    pub handler_type: StateType,
+    pub handle_input: &'static dyn Fn(&mut Tcod, &mut GameEngine) -> PlayerAction,
+    pub render: &'static dyn Fn(&mut Tcod, &mut GameEngine)
 }
 
-impl InputHandler {
+impl GameState {
     pub fn main() -> Self {
-        InputHandler {
-            handler_type: HandlerType::Main,
-            handle_input: &handle_keys
+        GameState {
+            handler_type: StateType::Main,
+            handle_input: &handle_keys,
+            render: &|_,_|()
+        }
+    }
+    pub fn inventory() -> Self {
+        GameState {
+            handler_type: StateType::Inventory,
+            handle_input: &handle_menu_input,
+            render: &|tcod,game| {
+                let inventory = &game.entities[PLAYER].inventory;
+                let options = if inventory.len() == 0 {
+                    vec!["Inventory is empty.".into()]
+                } else {
+                    inventory.iter().map(|item| {
+                        match item.equipment {
+                            Some(equipment) if equipment.equipped => {
+                                format!("{} (on {})", item.name, equipment.slot)
+                            }
+                            _ => item.name.clone()
+                        }
+                    }).collect()
+                };
+                display_menu(
+                    "Select an item to use by pressing the matching key, or any other to cancel\n",
+                    &options,
+                    INVENTORY_WIDTH,
+                    &mut tcod.root
+                );
+            }
         }
     }
 }
 
 use std::borrow::Borrow;
-impl Default for InputHandler {
+use serde::de::Unexpected::Unit;
+use tcod::input::Key;
+use crate::game_engine::PlayerAction::{DidntTakeTurn, TookTurn};
+use crate::inventory::inventory_actions::use_item;
+
+impl Default for GameState {
     fn default() -> Self {
-        InputHandler {
-            handler_type: HandlerType::Main,
-            handle_input: &{ | _: &mut _, _:&mut _ | PlayerAction::DidntTakeTurn }
-        }
+        GameState::main()
     }
 }
 
 pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
     use tcod::input::KeyCode::*;
+
     use tcod::input::Key;
     use crate::map::map_functions::next_level;
     use crate::inventory::inventory_actions::{drop_item, use_item};
@@ -215,7 +249,7 @@ pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
             let fullscreen = tcod.root.is_fullscreen();
             tcod.root.set_fullscreen(!fullscreen);
             DidntTakeTurn
-        }
+        },
         (Key { code: Escape, ..}, _, _, )=> return Exit,
 
         // movement keys
@@ -262,12 +296,7 @@ pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
             DidntTakeTurn
         },
         (Key { code: Text, .. }, "i", true ) => {
-            let inventory_selection = inventory_menu(
-                &game.entities[PLAYER].inventory, "Select an item to use by pressing the matching key, or any other to cancel\n",  &mut tcod.root
-            );
-            if let Some(inventory_selection) = inventory_selection {
-                use_item(inventory_selection, tcod, game);
-            }
+            game.game_state = Box::new(GameState::inventory());
             DidntTakeTurn
         },
         (Key {code: Text, ..}, "d", true ) => {
@@ -301,8 +330,66 @@ pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
 
             }
             DidntTakeTurn
-        }
+        },
         _ => DidntTakeTurn // everything else
+    }
+}
+
+fn handle_menu_input(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
+    use tcod::input::KeyCode::*;
+    use PlayerAction::*;
+
+    match (tcod.key, tcod.key.text()) {
+        (Key {code: Enter, alt: true, ..}, _, ) => {
+            let fullscreen = tcod.root.is_fullscreen();
+            tcod.root.set_fullscreen(!fullscreen);
+            DidntTakeTurn
+        },
+        (Key { code: Escape, ..}, _) => {
+            game.game_state = Box::new(GameState::main());
+            DidntTakeTurn
+        },
+        (Key { code: Text, .. }, _) => {
+            return handle_inventory(
+                tcod.key,
+                tcod,
+                game
+            )
+        },
+        _ => DidntTakeTurn
+    }
+}
+
+fn handle_inventory(
+    key: Key,
+    tcod: &mut Tcod,
+    game: &mut GameEngine
+) -> PlayerAction {
+    let inventory = &game.entities[PLAYER].inventory;
+    let options = if inventory.len() == 0 {
+        vec!["Inventory is empty.".into()]
+    } else {
+        inventory.iter().map(|item| {
+            match item.equipment {
+                Some(equipment) if equipment.equipped => {
+                    format!("{} (on {})", item.name, equipment.slot)
+                }
+                _ => item.name.clone()
+            }
+
+        }).collect()
+    };
+    if key.printable.is_alphabetic() {
+        let index = key.printable.to_ascii_lowercase() as usize - 'a' as usize;
+        if index < options.len() {
+            use_item(index, tcod, game);
+            game.game_state = Box::new(GameState::main());
+            TookTurn
+        } else {
+            DidntTakeTurn
+        }
+    } else {
+        DidntTakeTurn
     }
 }
 
@@ -330,7 +417,7 @@ pub fn run_game_loop(tcod: &mut Tcod, game: &mut GameEngine) {
         level_up(tcod, game.entities[PLAYER].borrow_mut());
 
         previous_player_position = game.entities[PLAYER].pos();
-        let player_action = (game.input_handler.handle_input)(tcod, game);
+        let player_action = (game.game_state.handle_input)(tcod, game);
         if player_action == PlayerAction::Exit {
             save_game(game).unwrap();
             break;
