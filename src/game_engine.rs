@@ -9,7 +9,7 @@ use tcod::map::FovAlgorithm;
 use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, SCREEN_WIDTH, Tcod};
 use crate::save_game;
 use crate::audio::audio_engine::AudioEngine;
-use crate::graphics::render_functions::{BAR_WIDTH, display_menu, get_names_under_mouse, inventory_menu, INVENTORY_WIDTH, menu, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, PANEL_HEIGHT, PANEL_Y, render_bar};
+use crate::graphics::render_functions::{BAR_WIDTH, display_menu, get_names_under_mouse, inventory_menu, INVENTORY_WIDTH, menu, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, PANEL_HEIGHT, PANEL_Y, render_bar, render_inventory_menu, render_level_up_menu};
 use crate::map::mapgen::Map;
 use crate::util::ai::ai_take_turn;
 
@@ -176,11 +176,13 @@ pub enum PlayerAction {
 #[derive(Serialize, Deserialize)]
 pub enum StateType {
     Main,
-    Inventory
+    UseFromInventory,
+    DropFromInventory,
+    ChoosingUpgrade
 }
 
 pub struct GameState {
-    pub handler_type: StateType,
+    pub state_type: StateType,
     pub handle_input: &'static dyn Fn(&mut Tcod, &mut GameEngine) -> PlayerAction,
     pub render: &'static dyn Fn(&mut Tcod, &mut GameEngine)
 }
@@ -188,34 +190,51 @@ pub struct GameState {
 impl GameState {
     pub fn main() -> Self {
         GameState {
-            handler_type: StateType::Main,
+            state_type: StateType::Main,
             handle_input: &handle_keys,
             render: &|_,_|()
         }
     }
-    pub fn inventory() -> Self {
+    pub fn use_from_inventory() -> Self {
         GameState {
-            handler_type: StateType::Inventory,
-            handle_input: &handle_menu_input,
+            state_type: StateType::UseFromInventory,
+            handle_input: &handle_inventory_input,
             render: &|tcod,game| {
-                let inventory = &game.entities[PLAYER].inventory;
-                let options = if inventory.len() == 0 {
-                    vec!["Inventory is empty.".into()]
-                } else {
-                    inventory.iter().map(|item| {
-                        match item.equipment {
-                            Some(equipment) if equipment.equipped => {
-                                format!("{} (on {})", item.name, equipment.slot)
-                            }
-                            _ => item.name.clone()
-                        }
-                    }).collect()
-                };
-                display_menu(
-                    "Select an item to use by pressing the matching key, or any other to cancel\n",
-                    &options,
-                    INVENTORY_WIDTH,
-                    &mut tcod.root
+                render_inventory_menu(
+                    tcod,
+                    game,
+                    "Select an item to use by pressing the matching key, or any other to \
+                    cancel\n",
+                );
+            }
+        }
+    }
+
+    pub fn drop_from_inventory() -> Self {
+        GameState {
+            state_type: StateType::ChoosingUpgrade,
+            handle_input: &handle_inventory_input,
+            render: &|tcod,game| {
+                render_inventory_menu(
+                    tcod,
+                    game,
+                    "Select an item to drop by pressing the matching key, or any other to \
+                    cancel\n",
+                );
+            }
+        }
+    }
+
+
+    pub fn choosing_upgrade() -> Self {
+        GameState {
+            state_type: StateType::DropFromInventory,
+            handle_input: &handle_level_up_input,
+            render: &|tcod,game| {
+                render_level_up_menu(
+                    tcod,
+                    game,
+                    "Level up! Choose a stat to increase: \n",
                 );
             }
         }
@@ -226,7 +245,7 @@ use std::borrow::Borrow;
 use serde::de::Unexpected::Unit;
 use tcod::input::Key;
 use crate::game_engine::PlayerAction::{DidntTakeTurn, TookTurn};
-use crate::inventory::inventory_actions::use_item;
+use crate::inventory::inventory_actions::{drop_item, use_item};
 
 impl Default for GameState {
     fn default() -> Self {
@@ -296,16 +315,13 @@ pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
             DidntTakeTurn
         },
         (Key { code: Text, .. }, "i", true ) => {
-            game.game_state = Box::new(GameState::inventory());
+            log::info!("Changing game state to use from inventory");
+            game.game_state = Box::new(GameState::use_from_inventory());
             DidntTakeTurn
         },
         (Key {code: Text, ..}, "d", true ) => {
-            let inventory_selection = inventory_menu(
-                &game.entities[PLAYER].inventory, "Select an item you want to drop by pressing the matching key, or any other to cancel\n", &mut tcod.root
-            );
-            if let Some(inventory_selection) = inventory_selection {
-                drop_item(inventory_selection, game);
-            }
+            log::info!("Changing game state to drop from inventory");
+            game.game_state = Box::new(GameState::drop_from_inventory());
             DidntTakeTurn
         },
         (Key {code: Text, ..}, "<", true) => {
@@ -335,7 +351,10 @@ pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
     }
 }
 
-fn handle_menu_input(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
+fn handle_inventory_input(
+    tcod: &mut Tcod,
+    game: &mut GameEngine,
+) -> PlayerAction {
     use tcod::input::KeyCode::*;
     use PlayerAction::*;
 
@@ -346,6 +365,7 @@ fn handle_menu_input(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
             DidntTakeTurn
         },
         (Key { code: Escape, ..}, _) => {
+            log::info!("Changing game state to main");
             game.game_state = Box::new(GameState::main());
             DidntTakeTurn
         },
@@ -353,17 +373,52 @@ fn handle_menu_input(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
             return handle_inventory(
                 tcod.key,
                 tcod,
-                game
+                game,
+                match game.game_state.state_type {
+                    StateType::UseFromInventory => &use_item,
+                    _ => &drop_item
+                }
             )
         },
         _ => DidntTakeTurn
     }
 }
 
+
+fn handle_level_up_input(
+    tcod: &mut Tcod,
+    game: &mut GameEngine,
+) -> PlayerAction {
+    use tcod::input::KeyCode::*;
+    use PlayerAction::*;
+
+    match (tcod.key, tcod.key.text()) {
+        (Key {code: Enter, alt: true, ..}, _, ) => {
+            let fullscreen = tcod.root.is_fullscreen();
+            tcod.root.set_fullscreen(!fullscreen);
+            DidntTakeTurn
+        },
+        (Key { code: Escape, ..}, _) => {
+            log::info!("Changing game state to main");
+            game.game_state = Box::new(GameState::main());
+            DidntTakeTurn
+        },
+        (Key { code: Text, .. }, _) => {
+            return handle_level_up_selection(
+                tcod.key,
+                game,
+            )
+        },
+        _ => DidntTakeTurn
+    }
+}
+
+
 fn handle_inventory(
     key: Key,
     tcod: &mut Tcod,
-    game: &mut GameEngine
+    game: &mut GameEngine,
+    inventory_action: &'static dyn Fn(usize, &mut Tcod, &mut GameEngine)
 ) -> PlayerAction {
     let inventory = &game.entities[PLAYER].inventory;
     let options = if inventory.len() == 0 {
@@ -382,7 +437,8 @@ fn handle_inventory(
     if key.printable.is_alphabetic() {
         let index = key.printable.to_ascii_lowercase() as usize - 'a' as usize;
         if index < options.len() {
-            use_item(index, tcod, game);
+            inventory_action(index, tcod, game);
+            log::info!("Changing game state to main");
             game.game_state = Box::new(GameState::main());
             TookTurn
         } else {
@@ -414,7 +470,7 @@ pub fn run_game_loop(tcod: &mut Tcod, game: &mut GameEngine) {
 
         tcod.root.flush();
 
-        level_up(tcod, game.entities[PLAYER].borrow_mut());
+        check_for_level_up(game);
 
         previous_player_position = game.entities[PLAYER].pos();
         let player_action = (game.game_state.handle_input)(tcod, game);
@@ -434,41 +490,50 @@ pub fn run_game_loop(tcod: &mut Tcod, game: &mut GameEngine) {
     }
 }
 
-fn level_up(tcod: &mut Tcod, player: &mut Entity) {
+fn check_for_level_up(game: &mut GameEngine) {
+    let player = &mut game.entities[PLAYER];
     let level_up_xp = LEVEL_UP_BASE + LEVEL_UP_FACTOR * player.level;
     if player.fighter.as_ref().map_or(0, |f| f.xp) >= level_up_xp {
         player.level += 1;
-        //TODO add message back in:
-        // game.messages.add(format!("Your experience has increased. You are now level {}!", player.level), YELLOW);
-        let fighter = player.fighter.as_mut().unwrap();
-        let mut choice = None;
-        while choice.is_none() {
-            choice = menu(
-                "Level up! Choose a stat to increase: \n",
-                &[
-                    format!("Constitution (+20 HP, from {})", fighter.base_max_hp),
-                    format!("Strength (+1 attack, from {})", fighter.base_power),
-                    format!("Agility (+1 defense, from {})", fighter.base_defense),
-                ],
-                LEVEL_SCREEN_WIDTH,
-                &mut tcod.root
-            )
+        game.game_state = Box::new(GameState::choosing_upgrade());
+        log::info!("Changing game state to Leveling Up")
+    }
+}
+
+
+fn handle_level_up_selection(
+    key: Key,
+    game: &mut GameEngine,
+) -> PlayerAction {
+    let player = &mut game.entities[PLAYER];
+    let fighter = player.fighter.as_mut().unwrap();
+    let level_up_xp = LEVEL_UP_BASE + LEVEL_UP_FACTOR * player.level;
+    if key.printable.is_alphabetic() {
+        let index = key.printable.to_ascii_lowercase() as usize - 'a' as usize;
+        // TODO: dont hardcode to 3 - somehow determine number of upgrade choices
+        if index < 3 {
+            match index {
+                0 => {
+                    fighter.base_max_hp += 20;
+                    fighter.hp += 20;
+                }
+                1 => {
+                    fighter.base_power += 1;
+                }
+                2 => {
+                    fighter.base_defense += 1;
+                }
+                _ => unreachable!()
+            }
+            fighter.xp -= level_up_xp;
+            log::info!("Changing game state to main");
+            game.game_state = Box::new(GameState::main());
+            DidntTakeTurn
+        } else {
+            DidntTakeTurn
         }
-        tcod.root.flush();
-        fighter.xp -= level_up_xp;
-        match choice.unwrap() {
-            0 => {
-                fighter.base_max_hp += 20;
-                fighter.hp += 20;
-            }
-            1 => {
-                fighter.base_power += 1;
-            }
-            2 => {
-                fighter.base_defense += 1;
-            }
-            _ => unreachable!()
-        }
+    } else {
+        DidntTakeTurn
     }
 }
 

@@ -35,7 +35,7 @@ pub fn use_item(inventory_id: usize, tcod: &mut Tcod, game: &mut GameEngine) {
     }
 }
 
-pub fn drop_item(inventory_id: usize, game: &mut GameEngine) {
+pub fn drop_item(inventory_id: usize, _: &mut Tcod, game: &mut GameEngine) {
     //TODO dont default to players inventory
     let mut item = game.entities[PLAYER].inventory.remove(inventory_id);
     if item.equipment.is_some() {

@@ -1,9 +1,10 @@
 use tcod::{BackgroundFlag, Color, Console, TextAlignment};
-use tcod::colors::{DARKER_SEPIA, WHITE};
+use tcod::colors::{DARKER_SEPIA, WHITE, YELLOW};
 use tcod::console::{blit, Offscreen, Root};
 use tcod::input::Mouse;
 
 use crate::{Entity, FovMap, Map, MAP_HEIGHT, MAP_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
+use crate::game_engine::{GameEngine, LEVEL_SCREEN_WIDTH, LEVEL_UP_BASE, LEVEL_UP_FACTOR, PLAYER};
 
 pub const INVENTORY_WIDTH: i32 = 50;
 
@@ -69,6 +70,48 @@ pub fn get_names_under_mouse(mouse: Mouse, objects: &[Entity], fov_map: &FovMap)
     names.join(", ")
 }
 
+
+pub fn render_inventory_menu(tcod: &mut Tcod, game: &mut GameEngine, header: &str) {
+    let inventory = &game.entities[PLAYER].inventory;
+    let options = if inventory.len() == 0 {
+        vec!["Inventory is empty.".into()]
+    } else {
+        inventory.iter().map(|item| {
+            match item.equipment {
+                Some(equipment) if equipment.equipped => {
+                    format!("{} (on {})", item.name, equipment.slot)
+                }
+                _ => item.name.clone()
+            }
+        }).collect()
+    };
+    display_menu(
+        header,
+        &options,
+        INVENTORY_WIDTH,
+        &mut tcod.root
+    );
+}
+
+
+pub fn render_level_up_menu(tcod: &mut Tcod, game: &mut GameEngine, header: &str) {
+    let player = &mut game.entities[PLAYER];
+
+    //TODO add message back in:
+    // game.messages.add(format!("Your experience has increased. You are now level {}!", player.level), YELLOW);
+    let fighter = player.fighter.as_mut().unwrap();
+
+    display_menu(
+        header,
+        &[
+            format!("Constitution (+20 HP, from {})", fighter.base_max_hp),
+            format!("Strength (+1 attack, from {})", fighter.base_power),
+            format!("Agility (+1 defense, from {})", fighter.base_defense),
+        ],
+        LEVEL_SCREEN_WIDTH,
+        &mut tcod.root
+    );
+}
 
 pub fn menu<T: AsRef<str>>(header: &str, options: &[T], width: i32, root: &mut Root) -> Option<usize> {
     assert!(options.len() <= 26, "Cannot have more than 26 options in the menu");
