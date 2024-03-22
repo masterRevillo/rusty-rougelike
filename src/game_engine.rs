@@ -164,6 +164,48 @@ impl GameEngine {
         );
         (self.game_state.render)(tcod, self)
     }
+
+
+    pub fn run_game_loop(&mut self, tcod: &mut Tcod) {
+        use tcod::input::{self, Event};
+        // for FOV recompute by setting player position to a weird value
+        let mut previous_player_position = (-1, -1);
+
+        while !tcod.root.window_closed() {
+            // clear offscreen console before drawing anything
+            tcod.con.clear();
+
+            match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
+                Some((_, Event::Mouse(m))) => tcod.mouse = m,
+                Some((_, Event::Key(k))) => tcod.key = k,
+                _ => tcod.key = Default::default(),
+            }
+
+            let fov_recompute = previous_player_position != (self.entities[PLAYER].pos());
+
+            self.render_all(tcod, fov_recompute);
+
+            tcod.root.flush();
+
+            check_for_level_up(self);
+
+            previous_player_position = self.entities[PLAYER].pos();
+            let player_action = (self.game_state.handle_input)(tcod, self);
+            if player_action == PlayerAction::Exit {
+                save_game(self).unwrap();
+                break;
+            }
+            self.process_events();
+
+            if self.entities[PLAYER].alive && player_action != DidntTakeTurn {
+                for id in 0..self.entities.len() {
+                    if self.entities[id].ai.is_some() {
+                        ai_take_turn(id, &tcod, self)
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -242,7 +284,6 @@ impl GameState {
 }
 
 use std::borrow::Borrow;
-use serde::de::Unexpected::Unit;
 use tcod::input::Key;
 use crate::game_engine::PlayerAction::{DidntTakeTurn, TookTurn};
 use crate::inventory::inventory_actions::{drop_item, use_item};
@@ -446,47 +487,6 @@ fn handle_inventory(
         }
     } else {
         DidntTakeTurn
-    }
-}
-
-pub fn run_game_loop(tcod: &mut Tcod, game: &mut GameEngine) {
-    use tcod::input::{self, Event};
-    // for FOV recompute by setting player position to a weird value
-    let mut previous_player_position = (-1, -1);
-
-    while !tcod.root.window_closed() {
-        // clear offscreen console before drawing anything
-        tcod.con.clear();
-
-        match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
-            Some((_, Event::Mouse(m))) => tcod.mouse = m,
-            Some((_, Event::Key(k))) => tcod.key = k,
-            _ => tcod.key = Default::default(),
-        }
-
-        let fov_recompute = previous_player_position != (game.entities[PLAYER].pos());
-
-        game.render_all(tcod, fov_recompute);
-
-        tcod.root.flush();
-
-        check_for_level_up(game);
-
-        previous_player_position = game.entities[PLAYER].pos();
-        let player_action = (game.game_state.handle_input)(tcod, game);
-        if player_action == PlayerAction::Exit {
-            save_game(game).unwrap();
-            break;
-        }
-        game.process_events();
-
-        if game.entities[PLAYER].alive && player_action != PlayerAction::DidntTakeTurn {
-            for id in 0..game.entities.len() {
-                if game.entities[id].ai.is_some() {
-                    ai_take_turn(id, &tcod, game)
-                }
-            }
-        }
     }
 }
 

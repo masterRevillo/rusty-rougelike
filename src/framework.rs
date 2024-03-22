@@ -10,3 +10,7 @@ pub struct Tcod {
     pub key: Key,
     pub mouse: Mouse
 }
+
+pub struct Bracket {
+
+}

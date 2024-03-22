@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 use tcod::{BackgroundFlag, Console, TextAlignment};
 use tcod::colors::{DARK_RED, RED, SKY, WHITE};
 
-use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, run_game_loop, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
@@ -30,13 +30,13 @@ pub fn main_menu(tcod: &mut Tcod) {
         match choice {
             Some(0) => {
                 let mut game= new_game(tcod);
-                run_game_loop(tcod, &mut game);
+                game.run_game_loop(tcod);
             }
             Some(1) => {
                 match load_game() {
                     Ok(mut game) => {
                         initialize_fov(tcod, &game.map);
-                        run_game_loop(tcod, &mut game);
+                        game.run_game_loop(tcod);
                     },
                     Err(_e) => {
                         msgbox("\n No saved game to load.\n", 24, &mut tcod.root);
