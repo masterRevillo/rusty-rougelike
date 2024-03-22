@@ -7,8 +7,8 @@ edition = "2018"
 
 [dependencies]
 #tcod = "0.15"
-tcod = { git= "https://github.com/tomassedovic/tcod-rs.git", features = ["serialization"]}
-#bracket-lib = "~0.8"
+#tcod = { git= "https://github.com/tomassedovic/tcod-rs.git", features = ["serialization"]}
+bracket-lib = "~0.8"
 rand = "0.3.9"
 soloud = "1.0.2"
 serde = {version = "1.0", features = ["derive"]}
