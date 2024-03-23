@@ -220,7 +220,8 @@ pub enum StateType {
     Main,
     UseFromInventory,
     DropFromInventory,
-    ChoosingUpgrade
+    ChoosingUpgrade,
+    MainMenu
 }
 
 pub struct GameState {

@@ -2,9 +2,10 @@ use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
+use bracket_lib::color::{BLUE, DARK_RED, RED};
 
-use tcod::{BackgroundFlag, Console, TextAlignment};
-use tcod::colors::{DARK_RED, RED, SKY, WHITE};
+// use tcod::{BackgroundFlag, Console, TextAlignment};
+// use tcod::colors::{DARK_RED, RED, SKY, WHITE};
 
 use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
 use crate::entities::equipment::Equipment;
@@ -15,14 +16,14 @@ use crate::items::item::Item;
 use crate::util::death_callback::DeathCallback;
 
 pub fn main_menu(tcod: &mut Tcod) {
-    let img = tcod::image::Image::from_file("desert.png").ok().expect("Background image not found");
+    // let img = tcod::image::Image::from_file("desert.png").ok().expect("Background image not found");
 
     while !tcod.root.window_closed() {
-        tcod::image::blit_2x(&img, (1800,800), (-1,-1), &mut tcod.root, (0,0));
-
-        tcod.root.set_default_foreground(DARK_RED);
-        tcod.root.print_ex(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 6, BackgroundFlag::None, TextAlignment::Center, "THE HALLS OF RUZT");
-        tcod.root.print_ex(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 4, BackgroundFlag::None, TextAlignment::Center, "By Rev");
+        // tcod::image::blit_2x(&img, (1800,800), (-1,-1), &mut tcod.root, (0,0));
+        // 
+        // tcod.root.set_default_foreground(DARK_RED);
+        // tcod.root.print_ex(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 6, BackgroundFlag::None, TextAlignment::Center, "THE HALLS OF RUZT");
+        // tcod.root.print_ex(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 4, BackgroundFlag::None, TextAlignment::Center, "By Rev");
 
         let choices = &["Play a new game", "Continue last game", "Quit"];
         let choice = menu("", choices, 24, &mut tcod.root);
@@ -107,7 +108,14 @@ pub fn new_game(tcod: &mut Tcod) -> GameEngine {
     game.set_audio_engine(config);
     game.play_background_music();
 
-    let mut dagger = Entity::new(0, 0, '-', SKY, "dagger", false);
+    let mut dagger = Entity::new(
+        0,
+        0,
+        '-',
+        BLUE,
+        "dagger",
+        false
+    );
     dagger.item = Some(Item::Sword);
     dagger.equipment = Some(Equipment {
         equipped: true, slot: Slot::LeftHand, max_hp_bonus: 0, defense_bonus: 0, power_bonus: 2

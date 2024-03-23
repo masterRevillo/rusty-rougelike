@@ -1,8 +1,10 @@
 use core::option::Option;
 use core::option::Option::{None, Some};
 use std::collections::HashMap;
-use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
-use tcod::console::{BackgroundFlag, Console};
+use bracket_lib::prelude::to_cp437;
+use bracket_lib::terminal::Console;
+// use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
+// use tcod::console::{BackgroundFlag, Console};
 use serde::{Deserialize, Serialize};
 use crate::Messages;
 use crate::entities::equipment::Equipment;
@@ -55,13 +57,14 @@ impl Entity {
     // draw self onto given console
     pub fn draw(&self, con: &mut dyn Console, camera: &mut Camera) {             // dyn: Console is a "trait", not a struct. dyn is basically used to announce that its a trait
         let (x_in_camera, y_in_camera) = camera.get_pos_in_camera(self.x, self.y);
-        con.set_default_foreground(self.color);                  // pointers to traits are double the size of pointers to structs, so there some implications with using it
+        // con.set_default_foreground(self.color);                  // pointers to traits are double the size of pointers to structs, so there some implications with using it
         if camera.in_bounds(x_in_camera, y_in_camera) {
-            con.put_char(
+            con.set(
                 x_in_camera,
                 y_in_camera,
-                self.char,
-                BackgroundFlag::None
+                self.color,
+                self.color,
+                to_cp437(self.char),
             )
         }
     }
