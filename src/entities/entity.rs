@@ -1,6 +1,7 @@
 use core::option::Option;
 use core::option::Option::{None, Some};
 use std::collections::HashMap;
+use bracket_lib::color::{LIGHT_GREEN, LIGHT_YELLOW, RED, RGB, RGBA};
 use bracket_lib::prelude::to_cp437;
 use bracket_lib::terminal::Console;
 // use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
@@ -21,7 +22,7 @@ pub struct Entity {
     pub x: i32,
     pub y: i32,
     pub char: char,
-    pub color: Color,
+    pub color: RGB,
     pub name: String,
     pub blocks: bool,
     pub alive: bool,
@@ -35,7 +36,7 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn new(x: i32, y: i32, char: char, color: Color, name: &str, blocks: bool) -> Self {
+    pub fn new(x: i32, y: i32, char: char, color: RGB, name: &str, blocks: bool) -> Self {
         Entity {
             x: x,
             y: y,
@@ -62,8 +63,8 @@ impl Entity {
             con.set(
                 x_in_camera,
                 y_in_camera,
-                self.color,
-                self.color,
+                RGBA::from(self.color),
+                RGBA::from(self.color),
                 to_cp437(self.char),
             )
         }

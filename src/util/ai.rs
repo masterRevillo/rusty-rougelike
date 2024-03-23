@@ -7,7 +7,7 @@ use tcod::colors::RED;
 use crate::entities::entity::Entity;
 use crate::entities::entity_actions::move_towards;
 use crate::events::game_event_processing::{EventType, GameEvent};
-use crate::framework::Tcod;
+use crate::framework::GameFramework;
 use crate::game_engine::{GameEngine, PLAYER};
 use crate::map::mapgen::{Map, MAP_HEIGHT, MAP_WIDTH};
 use crate::util::mut_two::mut_two;
@@ -21,7 +21,7 @@ pub enum Ai {
     },
 }
 
-pub fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &mut GameEngine) {
+pub fn ai_take_turn(monster_id: usize, tcod: &GameFramework, game: &mut GameEngine) {
     use Ai::*;
     if let Some(ai) = game.entities[monster_id].ai.take() {               // take() removes to the option from Option - it then becomes empty
         let new_ai = match ai {
@@ -35,7 +35,7 @@ pub fn ai_take_turn(monster_id: usize, tcod: &Tcod, game: &mut GameEngine) {
     }
 }
 
-fn ai_basic(monster_id: usize, tcod: &Tcod, game: &mut GameEngine) -> Ai {
+fn ai_basic(monster_id: usize, tcod: &GameFramework, game: &mut GameEngine) -> Ai {
     // a basic ai takes a turn. If you can see it, it can see you
     let entities: &mut Vec<Entity> = game.entities.borrow_mut();
     let event_bus = game.event_bus.borrow_mut();
@@ -58,7 +58,7 @@ fn ai_basic(monster_id: usize, tcod: &Tcod, game: &mut GameEngine) -> Ai {
     Ai::Basic
 }
 
-fn ai_confused(monster_id:usize, _tcod: & Tcod, game: &mut GameEngine, previous_ai: Box<Ai>, num_turns: i32) -> Ai {
+fn ai_confused(monster_id:usize, _tcod: &GameFramework, game: &mut GameEngine, previous_ai: Box<Ai>, num_turns: i32) -> Ai {
     let x = rand::thread_rng().gen_range(0, MAP_WIDTH);
     let y = rand::thread_rng().gen_range(0, MAP_HEIGHT);
     let messages = game.messages.borrow_mut();

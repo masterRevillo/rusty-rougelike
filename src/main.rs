@@ -21,7 +21,7 @@ use util::messages::Messages;
 
 use crate::config::game_config::{GameConfig, load_configs};
 use crate::events::game_event_processing::{EventBus, EventData, EventProcessor, EventType, GameEvent};
-use crate::framework::Tcod;
+use crate::framework::GameFramework;
 use crate::game_engine::{GameEngine, StateType};
 use crate::graphics::camera::Camera;
 use crate::setup_game::{save_game};
@@ -111,7 +111,7 @@ fn main() -> BError{
 
     let gs = State{
         current_state: StateType::MainMenu,
-        
+
     };
     main_loop(console, gs)
 

@@ -1,12 +1,12 @@
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
-
-use tcod::colors::{GREEN, RED};
-
+use bracket_lib::color::{GREEN, RED};
+use bracket_lib::prelude::field_of_view;
+use bracket_lib::terminal::VirtualKeyCode::Escape;
 use crate::{MAP_HEIGHT, MAP_WIDTH};
 use crate::entities::entity::Entity;
 use crate::events::game_event_processing::{EventData, EventType, GameEvent};
-use crate::framework::Tcod;
+use crate::framework::GameFramework;
 use crate::game_engine::{GameEngine, PLAYER};
 use crate::inventory::inventory_actions::get_equipped_id_in_slot;
 use crate::map::map_functions::is_blocked;
@@ -78,29 +78,22 @@ pub fn move_towards(id: usize, target_x: i32, target_y: i32, map: &Map, entities
 }
 
 pub fn target_tile(
-    tcod: &mut Tcod,
+    framework: &mut GameFramework,
     game: &mut GameEngine,
     max_range: Option<f32>
 ) -> Option<(i32, i32)> {
-    use tcod::input::KeyCode::Escape;
-    use tcod::input::{self, Event};
     loop {
-        tcod.root.flush();
-        let event = input::check_for_event(input::KEY_PRESS | input::MOUSE).map(|e| e.1);
-        match event {
-            Some(Event::Mouse(m)) => tcod.mouse = m,
-            Some(Event::Key(k)) => tcod.key = k,
-            None => tcod.key = Default::default()
-        }
-        game.render_all(tcod, false);
-        let (x, y) = (tcod.mouse.cx as i32, tcod.mouse.cy as i32);
+        framework.con.cls();
+        game.render_all(framework, false);
+        let key = framework.con.key;
+        let (x, y) = framework.con.mouse_pos;
 
-        let in_fov = (x < MAP_WIDTH) && (y < MAP_HEIGHT) && tcod.fov.is_in_fov(x, y);
-        let in_range = max_range.map_or(true, |range| game.entities[PLAYER].distance(x, y) <= range);
-        if tcod.mouse.lbutton_pressed && in_fov && in_range {
+        let in_fov = (x < MAP_WIDTH) && (y < MAP_HEIGHT) && framework.fov.is_in_fov(x, y);
+        field_of_view()
+        if framework.con.left_click && in_fov && framework.con.mouse_visible {
             return Some((x, y))
         }
-        if tcod.mouse.rbutton_pressed || tcod.key.code == Escape {
+        if framework.con.left_click || key == Some(Escape){
             return None;
         }
     }

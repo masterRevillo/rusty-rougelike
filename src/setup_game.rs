@@ -7,7 +7,7 @@ use bracket_lib::color::{BLUE, DARK_RED, RED};
 // use tcod::{BackgroundFlag, Console, TextAlignment};
 // use tcod::colors::{DARK_RED, RED, SKY, WHITE};
 
-use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, SCREEN_HEIGHT, SCREEN_WIDTH, GameFramework};
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
@@ -15,12 +15,12 @@ use crate::game_engine::{GameState, PLAYER};
 use crate::items::item::Item;
 use crate::util::death_callback::DeathCallback;
 
-pub fn main_menu(tcod: &mut Tcod) {
+pub fn main_menu(tcod: &mut GameFramework) {
     // let img = tcod::image::Image::from_file("desert.png").ok().expect("Background image not found");
 
     while !tcod.root.window_closed() {
         // tcod::image::blit_2x(&img, (1800,800), (-1,-1), &mut tcod.root, (0,0));
-        // 
+        //
         // tcod.root.set_default_foreground(DARK_RED);
         // tcod.root.print_ex(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 6, BackgroundFlag::None, TextAlignment::Center, "THE HALLS OF RUZT");
         // tcod.root.print_ex(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 4, BackgroundFlag::None, TextAlignment::Center, "By Rev");
@@ -64,7 +64,7 @@ pub fn load_game() -> Result<GameEngine, Box<dyn Error>> {
     Ok(result)
 }
 
-pub fn new_game(tcod: &mut Tcod) -> GameEngine {
+pub fn new_game(tcod: &mut GameFramework) -> GameEngine {
     let config = load_configs();
     let mut player = Entity::new(0, 0, '@', WHITE, "player", true);
     player.alive = true;

@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 use tcod::colors::{DARK_RED, GOLD, LIGHT_BLUE, LIGHT_CYAN, LIGHT_GREEN, ORANGE, RED, WHITE, YELLOW};
-use crate::framework::Tcod;
+use crate::framework::GameFramework;
 use crate::game_engine::{GameEngine, PLAYER};
 use crate::entities::entity::Entity;
 use crate::entities::entity_actions::target_tile;
@@ -9,7 +9,7 @@ use crate::items::item::*;
 use crate::map::map_functions::{closest_monster, target_monster};
 use crate::util::ai::Ai;
 
-pub fn use_item(inventory_id: usize, tcod: &mut Tcod, game: &mut GameEngine) {
+pub fn use_item(inventory_id: usize, tcod: &mut GameFramework, game: &mut GameEngine) {
     use Item::*;
     if let Some(item) = &game.entities[PLAYER].inventory[inventory_id].item {
         let on_use = match item {
@@ -35,7 +35,7 @@ pub fn use_item(inventory_id: usize, tcod: &mut Tcod, game: &mut GameEngine) {
     }
 }
 
-pub fn drop_item(inventory_id: usize, _: &mut Tcod, game: &mut GameEngine) {
+pub fn drop_item(inventory_id: usize, _: &mut GameFramework, game: &mut GameEngine) {
     //TODO dont default to players inventory
     let mut item = game.entities[PLAYER].inventory.remove(inventory_id);
     if item.equipment.is_some() {
@@ -48,7 +48,7 @@ pub fn drop_item(inventory_id: usize, _: &mut Tcod, game: &mut GameEngine) {
 
 pub fn cast_heal(
     _inventory_id: usize,
-    _tcod: &mut Tcod,
+    _tcod: &mut GameFramework,
     game: &mut GameEngine
 ) -> UseResult {
     let player = &mut game.entities[PLAYER];
@@ -66,7 +66,7 @@ pub fn cast_heal(
 
 pub fn cast_lightning(
     _inventory_id: usize,
-    tcod: &mut Tcod,
+    tcod: &mut GameFramework,
     game: &mut GameEngine,
 ) -> UseResult {
 
@@ -90,7 +90,7 @@ pub fn cast_lightning(
     }
 }
 
-pub fn cast_confuse(_inventory_id: usize, tcod: &mut Tcod, game: &mut GameEngine) -> UseResult {
+pub fn cast_confuse(_inventory_id: usize, tcod: &mut GameFramework, game: &mut GameEngine) -> UseResult {
     // let monster_id = target_monster(CONFUSE_RANGE, objects, tcod);
     let monster_id = target_monster(tcod, game, Some(CONFUSE_RANGE as f32));
     if let Some(monster_id) = monster_id {
@@ -107,7 +107,7 @@ pub fn cast_confuse(_inventory_id: usize, tcod: &mut Tcod, game: &mut GameEngine
     }
 }
 
-pub fn cast_fireball(_inventory_id: usize, tcod: &mut Tcod, game: &mut GameEngine) -> UseResult {
+pub fn cast_fireball(_inventory_id: usize, tcod: &mut GameFramework, game: &mut GameEngine) -> UseResult {
     game.messages.add("Left-click a tile to cast a fireball at it; right-click or Esc to cancel", LIGHT_CYAN);
     let (x, y) = match target_tile(tcod, game, None) {
         Some(tile_pos) => tile_pos,
@@ -133,7 +133,7 @@ pub fn cast_fireball(_inventory_id: usize, tcod: &mut Tcod, game: &mut GameEngin
     UseResult::UsedUp
 }
 
-pub fn examine_artifact(inventory_id: usize, _tcod: &mut Tcod, game: &mut GameEngine) -> UseResult {
+pub fn examine_artifact(inventory_id: usize, _tcod: &mut GameFramework, game: &mut GameEngine) -> UseResult {
     //TODO: dont default to player inventory
     match &game.entities[PLAYER].inventory[inventory_id].item {
         Some(item) => {
@@ -155,7 +155,7 @@ pub fn examine_artifact(inventory_id: usize, _tcod: &mut Tcod, game: &mut GameEn
     };
 }
 
-pub fn toggle_equipment(inventory_id: usize, _tcod: &mut Tcod, game: &mut GameEngine) -> UseResult {
+pub fn toggle_equipment(inventory_id: usize, _tcod: &mut GameFramework, game: &mut GameEngine) -> UseResult {
     //TODO: dont default to player inventory
     let messages = game.messages.borrow_mut();
     let player = game.entities[PLAYER].borrow_mut();

@@ -1,12 +1,12 @@
 use std::borrow::BorrowMut;
 
 use serde::{Deserialize, Serialize};
-use tcod::{BackgroundFlag, Console, TextAlignment};
-use tcod::colors::{BLACK, DARKER_RED, LIGHT_GREEN, LIGHT_GREY, WHITE};
-use tcod::console::{blit, Root};
-use tcod::map::FovAlgorithm;
+// use tcod::{BackgroundFlag, Console, TextAlignment};
+// use tcod::colors::{BLACK, DARKER_RED, LIGHT_GREEN, LIGHT_GREY, WHITE};
+// use tcod::console::{blit, Root};
+// use tcod::map::FovAlgorithm;
 
-use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, SCREEN_WIDTH, Tcod};
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, SCREEN_WIDTH, GameFramework};
 use crate::save_game;
 use crate::audio::audio_engine::AudioEngine;
 use crate::graphics::render_functions::{BAR_WIDTH, display_menu, get_names_under_mouse, inventory_menu, INVENTORY_WIDTH, menu, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, PANEL_HEIGHT, PANEL_Y, render_bar, render_inventory_menu, render_level_up_menu};
@@ -14,7 +14,7 @@ use crate::map::mapgen::Map;
 use crate::util::ai::ai_take_turn;
 
 //fov settings
-pub const FOV_ALGO: FovAlgorithm = FovAlgorithm::Basic;
+// pub const FOV_ALGO: FovAlgorithm = FovAlgorithm::Basic;
 pub const FOV_LIGHT_WALLS: bool = true;
 pub const TORCH_RADIUS: i32 = 10;
 
@@ -70,7 +70,7 @@ impl GameEngine {
             });
     }
 
-    pub fn render_all(&mut self, tcod: &mut Tcod, fov_recompute: bool) {
+    pub fn render_all(&mut self, framework: &mut GameFramework, fov_recompute: bool) {
         let map: &mut Map = self.map.borrow_mut();
         let messages = self.messages.borrow_mut();
         let dungeon_level = self.dungeon_level;
@@ -80,14 +80,14 @@ impl GameEngine {
 
         if fov_recompute {
             let player = &self.entities[PLAYER];
-            tcod.fov.compute_fov(player.x, player.y, TORCH_RADIUS, FOV_LIGHT_WALLS, FOV_ALGO)
+            // tcod.fov.compute_fov(player.x, player.y, TORCH_RADIUS, FOV_LIGHT_WALLS, FOV_ALGO)
         }
         let entities: &mut Vec<Entity> = self.entities.borrow_mut();
         for y in 0..MAP_HEIGHT {
             for x in 0..MAP_WIDTH {
                 let (x_in_camera, y_in_camera) = camera.get_pos_in_camera(x, y);
                 if camera.in_bounds(x_in_camera, y_in_camera) && in_map_bounds(x, y) {
-                    let visible = tcod.fov.is_in_fov(x, y);
+                    let visible = framework.fov.is_in_fov(x, y);
                     let color = match visible {
                         false => map[x as usize][y as usize].dark_color,
                         true => map[x as usize][y as usize].lit_color,
@@ -102,9 +102,9 @@ impl GameEngine {
                     }
                     if *explored {
                         let c = map[x as usize][y as usize].surface_char;
-                        tcod.con.set_default_foreground(surface_color);
-                        tcod.con.put_char(x_in_camera, y_in_camera, c, BackgroundFlag::None);
-                        tcod.con.set_char_background(x_in_camera, y_in_camera, color, BackgroundFlag::Set);
+                        // framework.con.set_default_foreground(surface_color);
+                        // framework.con.put_char(x_in_camera, y_in_camera, c, BackgroundFlag::None);
+                        // framework.con.set_char_background(x_in_camera, y_in_camera, color, BackgroundFlag::Set);
                     }
                 }
             }
@@ -112,61 +112,61 @@ impl GameEngine {
         let mut to_draw: Vec<_> = entities
             .iter()
             .filter(|o|
-                        tcod.fov.is_in_fov(o.x, o.y)                                            // is in fov
+                        framework.fov.is_in_fov(o.x, o.y)                                            // is in fov
                             || (o.always_visible && map[o.x as usize][o.y as usize].explored)  // is always visible and has been explored
             )
             .collect();
         to_draw.sort_by(|o1, o2|{o1.blocks.cmp(&o2.blocks)});
         for object in to_draw {
-            object.draw(&mut tcod.con, camera);
+            object.draw(&mut framework.con, camera);
         }
         // reset GUI panel
-        tcod.root.set_default_foreground(WHITE);
-        tcod.panel.set_default_background(BLACK);
-        tcod.panel.clear();
+        framework.root.set_default_foreground(WHITE);
+        framework.panel.set_default_background(BLACK);
+        framework.panel.clear();
         // display player stats
         let hp = entities[PLAYER].fighter.map_or(0, |f| f.hp);
         let max_hp = entities[PLAYER].max_hp();
-        render_bar(&mut tcod.panel, 1, 1, BAR_WIDTH, "HP", hp, max_hp, LIGHT_GREEN, DARKER_RED);
+        render_bar(&mut framework.panel, 1, 1, BAR_WIDTH, "HP", hp, max_hp, LIGHT_GREEN, DARKER_RED);
         // get names at mouse location
-        tcod.panel.set_default_foreground(LIGHT_GREY);
-        tcod.panel.print_ex(1, 0, BackgroundFlag::None, TextAlignment::Left, get_names_under_mouse(tcod.mouse, entities, &tcod.fov));
+        framework.panel.set_default_foreground(LIGHT_GREY);
+        framework.panel.print_ex(1, 0, BackgroundFlag::None, TextAlignment::Left, get_names_under_mouse(framework.mouse, entities, &framework.fov));
         // display message log
         let mut y = MSG_HEIGHT as i32;
         for &(ref msg, color) in messages.iter().rev() {     // iterate through the messages in reverse order
-            let msg_height = tcod.panel.get_height_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+            let msg_height = framework.panel.get_height_rect(MSG_X, y, MSG_WIDTH, 0, msg);
             y -= msg_height;
             if y < 0 {
                 break;
             }
-            tcod.panel.set_default_foreground(color);
-            tcod.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+            framework.panel.set_default_foreground(color);
+            framework.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
         }
         // display game level
-        tcod.panel.print_ex(1, 3, BackgroundFlag::None, TextAlignment::Left, format!("Level {}", dungeon_level));
+        framework.panel.print_ex(1, 3, BackgroundFlag::None, TextAlignment::Left, format!("Level {}", dungeon_level));
         blit(
-            &tcod.panel,
+            &framework.panel,
             (0,0),
             (SCREEN_WIDTH, PANEL_HEIGHT),
-            &mut tcod.root,
+            &mut framework.root,
             (0, PANEL_Y),
             1.0, 1.0
         );
         // blit the map
         blit(
-            &tcod.con,
+            &framework.con,
             (0, 0),
             (MAP_WIDTH, MAP_HEIGHT),
-            &mut tcod.root,
+            &mut framework.root,
             (0, 0),
             1.0,
             1.0,
         );
-        (self.game_state.render)(tcod, self)
+        (self.game_state.render)(framework, self)
     }
 
 
-    pub fn run_game_loop(&mut self, tcod: &mut Tcod) {
+    pub fn run_game_loop(&mut self, tcod: &mut GameFramework) {
         use tcod::input::{self, Event};
         // for FOV recompute by setting player position to a weird value
         let mut previous_player_position = (-1, -1);
@@ -226,8 +226,8 @@ pub enum StateType {
 
 pub struct GameState {
     pub state_type: StateType,
-    pub handle_input: &'static dyn Fn(&mut Tcod, &mut GameEngine) -> PlayerAction,
-    pub render: &'static dyn Fn(&mut Tcod, &mut GameEngine)
+    pub handle_input: &'static dyn Fn(&mut GameFramework, &mut GameEngine) -> PlayerAction,
+    pub render: &'static dyn Fn(&mut GameFramework, &mut GameEngine)
 }
 
 impl GameState {
@@ -295,7 +295,7 @@ impl Default for GameState {
     }
 }
 
-pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
+pub fn handle_keys(tcod: &mut GameFramework, game: &mut GameEngine) -> PlayerAction {
     use tcod::input::KeyCode::*;
 
     use tcod::input::Key;
@@ -394,7 +394,7 @@ pub fn handle_keys(tcod: &mut Tcod, game: &mut GameEngine) -> PlayerAction {
 }
 
 fn handle_inventory_input(
-    tcod: &mut Tcod,
+    tcod: &mut GameFramework,
     game: &mut GameEngine,
 ) -> PlayerAction {
     use tcod::input::KeyCode::*;
@@ -428,7 +428,7 @@ fn handle_inventory_input(
 
 
 fn handle_level_up_input(
-    tcod: &mut Tcod,
+    tcod: &mut GameFramework,
     game: &mut GameEngine,
 ) -> PlayerAction {
     use tcod::input::KeyCode::*;
@@ -458,9 +458,9 @@ fn handle_level_up_input(
 
 fn handle_inventory(
     key: Key,
-    tcod: &mut Tcod,
+    tcod: &mut GameFramework,
     game: &mut GameEngine,
-    inventory_action: &'static dyn Fn(usize, &mut Tcod, &mut GameEngine)
+    inventory_action: &'static dyn Fn(usize, &mut GameFramework, &mut GameEngine)
 ) -> PlayerAction {
     let inventory = &game.entities[PLAYER].inventory;
     let options = if inventory.len() == 0 {

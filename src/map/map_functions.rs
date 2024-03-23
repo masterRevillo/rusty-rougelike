@@ -1,6 +1,6 @@
 use tcod::colors::{RED, VIOLET};
 use crate::entities::entity::Entity;
-use crate::framework::Tcod;
+use crate::framework::GameFramework;
 use crate::game_engine::{FOV_ALGO, FOV_LIGHT_WALLS, GameEngine, PLAYER, TORCH_RADIUS};
 use crate::map::mapgen::{from_dungeon_level, LEVEL_TYPE_TRANSITION, make_boss_map, make_map, Map};
 use crate::entities::entity_actions::target_tile;
@@ -15,7 +15,7 @@ pub fn is_blocked(x: i32, y: i32, map: &Map, entity: &[Entity]) -> bool {
         .any(|object| object.blocks && object.pos() == (x,y))
 }
 
-pub fn next_level(tcod: &mut Tcod, game: &mut GameEngine) {
+pub fn next_level(tcod: &mut GameFramework, game: &mut GameEngine) {
     game.messages.add("You rest for a minute and recover your strength", VIOLET);
     let heal_hp = game.entities[PLAYER].max_hp() / 2;
     game.entities[PLAYER].heal(heal_hp);
@@ -31,7 +31,7 @@ pub fn next_level(tcod: &mut Tcod, game: &mut GameEngine) {
     tcod.fov.compute_fov(game.entities[PLAYER].x, game.entities[PLAYER].y, TORCH_RADIUS, FOV_LIGHT_WALLS, FOV_ALGO)
 }
 
-pub fn closest_monster(tcod: &Tcod, game: &mut GameEngine, max_range: i32) -> Option<usize> {
+pub fn closest_monster(tcod: &GameFramework, game: &mut GameEngine, max_range: i32) -> Option<usize> {
     let mut closest_enemy = None;
     let mut closest_dist = (max_range +1) as f32;
 
@@ -48,7 +48,7 @@ pub fn closest_monster(tcod: &Tcod, game: &mut GameEngine, max_range: i32) -> Op
 }
 
 pub fn target_monster(
-    tcod: &mut Tcod,
+    tcod: &mut GameFramework,
     game: &mut GameEngine,
     max_range: Option<f32>
 ) -> Option<usize> {

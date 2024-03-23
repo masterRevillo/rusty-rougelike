@@ -3,7 +3,7 @@ use tcod::colors::{DARKER_SEPIA, WHITE, YELLOW};
 use tcod::console::{blit, Offscreen, Root};
 use tcod::input::Mouse;
 
-use crate::{Entity, FovMap, Map, MAP_HEIGHT, MAP_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, Tcod};
+use crate::{Entity, FovMap, Map, MAP_HEIGHT, MAP_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, GameFramework};
 use crate::game_engine::{GameEngine, LEVEL_SCREEN_WIDTH, LEVEL_UP_BASE, LEVEL_UP_FACTOR, PLAYER};
 
 pub const INVENTORY_WIDTH: i32 = 50;
@@ -17,7 +17,7 @@ pub const MSG_X: i32 = BAR_WIDTH + 2;
 pub const MSG_WIDTH: i32 = SCREEN_WIDTH - BAR_WIDTH - 2;
 pub const MSG_HEIGHT: usize = PANEL_HEIGHT as usize - 1;
 
-pub fn initialize_fov(tcod: &mut Tcod, map: &Map) {
+pub fn initialize_fov(tcod: &mut GameFramework, map: &Map) {
     for y in 0..MAP_HEIGHT as usize {
         for x in 0..MAP_WIDTH as usize {
             tcod.fov.set(
@@ -71,7 +71,7 @@ pub fn get_names_under_mouse(mouse: Mouse, objects: &[Entity], fov_map: &FovMap)
 }
 
 
-pub fn render_inventory_menu(tcod: &mut Tcod, game: &mut GameEngine, header: &str) {
+pub fn render_inventory_menu(tcod: &mut GameFramework, game: &mut GameEngine, header: &str) {
     let inventory = &game.entities[PLAYER].inventory;
     let options = if inventory.len() == 0 {
         vec!["Inventory is empty.".into()]
@@ -94,7 +94,7 @@ pub fn render_inventory_menu(tcod: &mut Tcod, game: &mut GameEngine, header: &st
 }
 
 
-pub fn render_level_up_menu(tcod: &mut Tcod, game: &mut GameEngine, header: &str) {
+pub fn render_level_up_menu(tcod: &mut GameFramework, game: &mut GameEngine, header: &str) {
     let player = &mut game.entities[PLAYER];
 
     //TODO add message back in:
