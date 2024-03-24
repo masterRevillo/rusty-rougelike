@@ -2,7 +2,7 @@ use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
-use bracket_lib::color::{BLUE, DARK_RED, RED};
+use bracket_lib::color::{BLUE, DARK_RED, RED, RGB, WHITE};
 
 // use tcod::{BackgroundFlag, Console, TextAlignment};
 // use tcod::colors::{DARK_RED, RED, SKY, WHITE};
@@ -15,10 +15,10 @@ use crate::game_engine::{GameState, PLAYER};
 use crate::items::item::Item;
 use crate::util::death_callback::DeathCallback;
 
-pub fn main_menu(tcod: &mut GameFramework) {
+pub fn main_menu(framework: &mut GameFramework) {
     // let img = tcod::image::Image::from_file("desert.png").ok().expect("Background image not found");
 
-    while !tcod.root.window_closed() {
+    while !framework.con.quitting {
         // tcod::image::blit_2x(&img, (1800,800), (-1,-1), &mut tcod.root, (0,0));
         //
         // tcod.root.set_default_foreground(DARK_RED);
@@ -26,21 +26,21 @@ pub fn main_menu(tcod: &mut GameFramework) {
         // tcod.root.print_ex(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 4, BackgroundFlag::None, TextAlignment::Center, "By Rev");
 
         let choices = &["Play a new game", "Continue last game", "Quit"];
-        let choice = menu("", choices, 24, &mut tcod.root);
+        let choice = menu("", choices, 24, &mut framework.con);
 
         match choice {
             Some(0) => {
-                let mut game= new_game(tcod);
-                game.run_game_loop(tcod);
+                let mut game= new_game(framework);
+                game.run_game_loop(framework);
             }
             Some(1) => {
                 match load_game() {
                     Ok(mut game) => {
-                        initialize_fov(tcod, &game.map);
-                        game.run_game_loop(tcod);
+                        initialize_fov(framework, &game.map);
+                        game.run_game_loop(framework);
                     },
                     Err(_e) => {
-                        msgbox("\n No saved game to load.\n", 24, &mut tcod.root);
+                        msgbox("\n No saved game to load.\n", 24, &mut framework.con);
                         continue;
                     }
                 }
@@ -66,7 +66,7 @@ pub fn load_game() -> Result<GameEngine, Box<dyn Error>> {
 
 pub fn new_game(tcod: &mut GameFramework) -> GameEngine {
     let config = load_configs();
-    let mut player = Entity::new(0, 0, '@', WHITE, "player", true);
+    let mut player = Entity::new(0, 0, '@', RGB::from(WHITE), "player", true);
     player.alive = true;
     player.fighter = Some(Fighter {
         base_max_hp: 30,
@@ -112,7 +112,7 @@ pub fn new_game(tcod: &mut GameFramework) -> GameEngine {
         0,
         0,
         '-',
-        BLUE,
+        RGB::from(BLUE),
         "dagger",
         false
     );
