@@ -13,7 +13,7 @@ use entities::entity::Entity;
 use events::audio_event_processor::AudioEventProcessor;
 use events::event_log_processor::EventLogProcessor;
 use events::game_occurrence::GameOccurrenceEventProcessor;
-use graphics::render_functions::{initialize_fov, menu, msgbox};
+use graphics::render_functions::{menu, msgbox};
 use map::mapgen::{in_map_bounds, make_map, MAP_HEIGHT, MAP_WIDTH};
 use map::mapgen::Map;
 use util::death_callback::DeathCallback;

@@ -87,7 +87,8 @@ impl GameEngine {
             for x in 0..MAP_WIDTH {
                 let (x_in_camera, y_in_camera) = camera.get_pos_in_camera(x, y);
                 if camera.in_bounds(x_in_camera, y_in_camera) && in_map_bounds(x, y) {
-                    let visible = framework.fov.is_in_fov(x, y);
+                    // let visible = framework.fov.is_in_fov(x, y);
+                    let visible = true;
                     let color = match visible {
                         false => map[x as usize][y as usize].dark_color,
                         true => map[x as usize][y as usize].lit_color,
@@ -112,8 +113,8 @@ impl GameEngine {
         let mut to_draw: Vec<_> = entities
             .iter()
             .filter(|o|
-                        framework.fov.is_in_fov(o.x, o.y)                                            // is in fov
-                            || (o.always_visible && map[o.x as usize][o.y as usize].explored)  // is always visible and has been explored
+                        // framework.fov.is_in_fov(o.x, o.y) ||
+                            (o.always_visible && map[o.x as usize][o.y as usize].explored)  // is always visible and has been explored
             )
             .collect();
         to_draw.sort_by(|o1, o2|{o1.blocks.cmp(&o2.blocks)});
@@ -121,76 +122,81 @@ impl GameEngine {
             object.draw(&mut framework.con, camera);
         }
         // reset GUI panel
-        framework.root.set_default_foreground(WHITE);
-        framework.panel.set_default_background(BLACK);
-        framework.panel.clear();
+        // framework.root.set_default_foreground(WHITE);
+        // framework.panel.set_default_background(BLACK);
+        // framework.panel.clear();
         // display player stats
         let hp = entities[PLAYER].fighter.map_or(0, |f| f.hp);
         let max_hp = entities[PLAYER].max_hp();
-        render_bar(&mut framework.panel, 1, 1, BAR_WIDTH, "HP", hp, max_hp, LIGHT_GREEN, DARKER_RED);
+        render_bar(&mut framework.con, 1, 1, BAR_WIDTH, "HP", hp, max_hp, RGBA::from(LIGHT_GREEN), RGBA::from(DARK_RED));
         // get names at mouse location
-        framework.panel.set_default_foreground(LIGHT_GREY);
-        framework.panel.print_ex(1, 0, BackgroundFlag::None, TextAlignment::Left, get_names_under_mouse(framework.mouse, entities, &framework.fov));
+        // framework.panel.set_default_foreground(LIGHT_GREY);
+        // framework.panel.print_ex(1, 0, BackgroundFlag::None, TextAlignment::Left, get_names_under_mouse(framework.mouse, entities, &framework.fov));
+        framework.con.print_color(1, 0, LIGHT_GRAY, BLACK, get_names_under_mouse(framework, entities));
         // display message log
         let mut y = MSG_HEIGHT as i32;
         for &(ref msg, color) in messages.iter().rev() {     // iterate through the messages in reverse order
-            let msg_height = framework.panel.get_height_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+            // let msg_height = framework.panel.get_height_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+            let msg_height = 1;
             y -= msg_height;
             if y < 0 {
                 break;
             }
-            framework.panel.set_default_foreground(color);
-            framework.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+            // framework.panel.set_default_foreground(color);
+            // framework.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+            framework.con.draw_box(MSG_X, y, MSG_WIDTH, 0, RGBA::from(color), RGBA::from(BLACK));
+            framework.con.print_color(MSG_X, y, RGBA::from(color), RGBA::from(BLACK), msg);
         }
         // display game level
-        framework.panel.print_ex(1, 3, BackgroundFlag::None, TextAlignment::Left, format!("Level {}", dungeon_level));
-        blit(
-            &framework.panel,
-            (0,0),
-            (SCREEN_WIDTH, PANEL_HEIGHT),
-            &mut framework.root,
-            (0, PANEL_Y),
-            1.0, 1.0
+        framework.con.print(
+            1,
+            3,
+            format!("Level {}", dungeon_level)
         );
-        // blit the map
-        blit(
-            &framework.con,
-            (0, 0),
-            (MAP_WIDTH, MAP_HEIGHT),
-            &mut framework.root,
-            (0, 0),
-            1.0,
-            1.0,
-        );
+        // blit(
+        //     &framework.panel,
+        //     (0,0),
+        //     (SCREEN_WIDTH, PANEL_HEIGHT),
+        //     &mut framework.root,
+        //     (0, PANEL_Y),
+        //     1.0, 1.0
+        // );
+        // // blit the map
+        // blit(
+        //     &framework.con,
+        //     (0, 0),
+        //     (MAP_WIDTH, MAP_HEIGHT),
+        //     &mut framework.root,
+        //     (0, 0),
+        //     1.0,
+        //     1.0,
+        // );
         (self.game_state.render)(framework, self)
     }
 
 
-    pub fn run_game_loop(&mut self, tcod: &mut GameFramework) {
-        use tcod::input::{self, Event};
+    pub fn run_game_loop(&mut self, framework: &mut GameFramework) {
         // for FOV recompute by setting player position to a weird value
         let mut previous_player_position = (-1, -1);
 
-        while !tcod.root.window_closed() {
-            // clear offscreen console before drawing anything
-            tcod.con.clear();
+        while !framework.con.quitting {
 
-            match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
-                Some((_, Event::Mouse(m))) => tcod.mouse = m,
-                Some((_, Event::Key(k))) => tcod.key = k,
-                _ => tcod.key = Default::default(),
-            }
-
+            // match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
+            //     Some((_, Event::Mouse(m))) => framework.mouse = m,
+            //     Some((_, Event::Key(k))) => framework.key = k,
+            //     _ => framework.key = Default::default(),
+            // }
+            //
             let fov_recompute = previous_player_position != (self.entities[PLAYER].pos());
 
-            self.render_all(tcod, fov_recompute);
+            self.render_all(framework, fov_recompute);
 
-            tcod.root.flush();
+            // framework.root.flush();
 
             check_for_level_up(self);
 
             previous_player_position = self.entities[PLAYER].pos();
-            let player_action = (self.game_state.handle_input)(tcod, self);
+            let player_action = (self.game_state.handle_input)(framework, self);
             if player_action == PlayerAction::Exit {
                 save_game(self).unwrap();
                 break;
@@ -200,7 +206,7 @@ impl GameEngine {
             if self.entities[PLAYER].alive && player_action != DidntTakeTurn {
                 for id in 0..self.entities.len() {
                     if self.entities[id].ai.is_some() {
-                        ai_take_turn(id, &tcod, self)
+                        ai_take_turn(id, &framework, self)
                     }
                 }
             }
@@ -285,7 +291,9 @@ impl GameState {
 }
 
 use std::borrow::Borrow;
-use tcod::input::Key;
+use bracket_lib::color::{DARK_RED, LIGHT_GRAY, LIGHT_GREEN, RGBA};
+use bracket_lib::prelude::VirtualKeyCode::Escape;
+use bracket_lib::terminal::{BLACK, VirtualKeyCode};
 use crate::game_engine::PlayerAction::{DidntTakeTurn, TookTurn};
 use crate::inventory::inventory_actions::{drop_item, use_item};
 
@@ -295,101 +303,101 @@ impl Default for GameState {
     }
 }
 
-pub fn handle_keys(tcod: &mut GameFramework, game: &mut GameEngine) -> PlayerAction {
-    use tcod::input::KeyCode::*;
+pub fn handle_keys(framework: &mut GameFramework, game: &mut GameEngine) -> PlayerAction {
 
-    use tcod::input::Key;
     use crate::map::map_functions::next_level;
-    use crate::inventory::inventory_actions::{drop_item, use_item};
     use crate::entities::entity_actions::{pick_item_up, player_move_or_attack};
     use PlayerAction::*;
+    use VirtualKeyCode::*;
 
     let player_alive = game.entities[PLAYER].alive;
-    match (tcod.key, tcod.key.text(), player_alive) {
-        (Key {code: Enter, alt: true, ..}, _, _,) => {               // the 2 dots signify that we dont care about the other values of Key. Without them, the code wouldnt compile until all values were supplied
-            let fullscreen = tcod.root.is_fullscreen();
-            tcod.root.set_fullscreen(!fullscreen);
-            DidntTakeTurn
-        },
-        (Key { code: Escape, ..}, _, _, )=> return Exit,
+    match (framework.con.key, player_alive) {
+        None => DidntTakeTurn,
+        Some(key) => match key {
+            // (Enter, alt: true, ..}, _, _,) => {               // the 2 dots signify that we dont care about the other values of Key. Without them, the code wouldnt compile until all values were supplied
+            //     let fullscreen = framework.root.is_fullscreen();
+            //     framework.root.set_fullscreen(!fullscreen);
+            //     DidntTakeTurn
+            // },
+            (Escape, _, ) => return Exit,
 
-        // movement keys
-        (Key { code: Up, .. }, _, true ) | (Key { code: NumPad8, .. }, _, true ) => {
-            player_move_or_attack(0, -1, game);
-            TookTurn
-        },
-        (Key { code: Down, .. }, _, true ) | (Key { code: NumPad2, .. }, _, true ) => {
-            player_move_or_attack(0, 1, game);
-            TookTurn
-        },
-        (Key { code: Left, .. }, _, true ) | (Key { code: NumPad4, .. }, _, true ) => {
-            player_move_or_attack(-1, 0, game);
-            TookTurn
-        },
-        (Key { code: Right, .. }, _, true ) | (Key { code: NumPad6, .. }, _, true ) => {
-            player_move_or_attack(1, 0, game);
-            TookTurn
-        },
-        (Key { code: Home, .. }, _, true ) | (Key { code: NumPad7, .. }, _, true ) => {
-            player_move_or_attack(-1, -1, game);
-            TookTurn
-        },
-        (Key { code: PageUp, .. }, _, true ) | (Key { code: NumPad9, .. }, _, true ) => {
-            player_move_or_attack(1, -1, game);
-            TookTurn
-        },
-        (Key { code: End, .. }, _, true ) | (Key { code: NumPad1, .. }, _, true ) => {
-            player_move_or_attack(-1, 1, game);
-            TookTurn
-        },
-        (Key { code: PageDown, .. }, _, true ) | (Key { code: NumPad3, .. }, _, true ) => {
-            player_move_or_attack(1, 1, game);
-            TookTurn
-        },
-        (Key { code: NumPad5, .. }, _, true ) | (Key { code: Text, .. }, ".", true ) => {
-            TookTurn
-        },
-        (Key { code: Text, .. }, "g", true ) => {
-            let item_id = game.entities.iter().position(|object| object.pos() == game.entities[PLAYER].pos() && object.item.is_some());
-            if let Some(item_id) = item_id {
-                pick_item_up(item_id, game);
-            }
-            DidntTakeTurn
-        },
-        (Key { code: Text, .. }, "i", true ) => {
-            log::info!("Changing game state to use from inventory");
-            game.game_state = Box::new(GameState::use_from_inventory());
-            DidntTakeTurn
-        },
-        (Key {code: Text, ..}, "d", true ) => {
-            log::info!("Changing game state to drop from inventory");
-            game.game_state = Box::new(GameState::drop_from_inventory());
-            DidntTakeTurn
-        },
-        (Key {code: Text, ..}, "<", true) => {
-            let player_on_stairs = game.entities
-            .iter()
-            .any(|object| object.pos() == game.entities[PLAYER].pos() && object.name == "stairs");
-            if player_on_stairs {
-                next_level(tcod, game);
-            }
-            DidntTakeTurn
-        },
-        (Key {code: Text, ..}, "c", true) => {
-            let player = &game.entities[PLAYER];
-            let level = player.level;
-            let level_up_xp = LEVEL_UP_BASE + level * LEVEL_UP_FACTOR;
-            if let Some(fighter) = player.fighter.as_ref() {
-                let msg = format!(
-                    "Player stats: \n Level: {}\nExperience: {}\nExperience to level up: {}\n\nMaximum HP: {}\nAttack: {}\nbase_Defense: {}",
-                    level, fighter.xp, level_up_xp, player.max_hp(), player.power(), player.defense()
-                );
-                msgbox(&msg, STATS_SCREEN_WIDTH, &mut tcod.root);
-
-            }
-            DidntTakeTurn
-        },
-        _ => DidntTakeTurn // everything else
+            // movement keys
+            (Up, true) | (Numpad8, true) => {
+                player_move_or_attack(0, -1, game);
+                TookTurn
+            },
+            (Down, true) | (Numpad2, true) => {
+                player_move_or_attack(0, 1, game);
+                TookTurn
+            },
+            (Left, true) | (Numpad4, true) => {
+                player_move_or_attack(-1, 0, game);
+                TookTurn
+            },
+            (Right, true) | (Numpad6, true) => {
+                player_move_or_attack(1, 0, game);
+                TookTurn
+            },
+            (Home, true) | (NumPad7, true) => {
+                player_move_or_attack(-1, -1, game);
+                TookTurn
+            },
+            (PageUp, true) | (Numpad9, true) => {
+                player_move_or_attack(1, -1, game);
+                TookTurn
+            },
+            (End, true) | (Numpad1, true) => {
+                player_move_or_attack(-1, 1, game);
+                TookTurn
+            },
+            (PageDown, true) | (Numpad3, true) => {
+                player_move_or_attack(1, 1, game);
+                TookTurn
+            },
+            (NumPad5, true) | (Period, true) => {
+                TookTurn
+            },
+            (G, true) => {
+                let item_id = game.entities.iter().position(|object| object.pos() == game.entities[PLAYER].pos() && object.item.is_some());
+                if let Some(item_id) = item_id {
+                    pick_item_up(item_id, game);
+                }
+                DidntTakeTurn
+            },
+            (I, true) => {
+                log::info!("Changing game state to use from inventory");
+                game.game_state = Box::new(GameState::use_from_inventory());
+                DidntTakeTurn
+            },
+            (D, true) => {
+                log::info!("Changing game state to drop from inventory");
+                game.game_state = Box::new(GameState::drop_from_inventory());
+                DidntTakeTurn
+            },
+            (Comma, true) if framework.con.shift => {
+                let player_on_stairs = game.entities
+                    .iter()
+                    .any(|object| object.pos() == game.entities[PLAYER].pos() && object.name == "stairs");
+                if player_on_stairs {
+                    next_level(framework, game);
+                }
+                DidntTakeTurn
+            },
+            (C, true) => {
+                let player = &game.entities[PLAYER];
+                let level = player.level;
+                let level_up_xp = LEVEL_UP_BASE + level * LEVEL_UP_FACTOR;
+                if let Some(fighter) = player.fighter.as_ref() {
+                    let msg = format!(
+                        "Player stats: \n Level: {}\nExperience: {}\nExperience to level up: {}\n\nMaximum HP: {}\nAttack: {}\nbase_Defense: {}",
+                        level, fighter.xp, level_up_xp, player.max_hp(), player.power(), player.defense()
+                    );
+                    msgbox(&msg, STATS_SCREEN_WIDTH, &mut framework.con);
+                }
+                DidntTakeTurn
+            },
+            _ => DidntTakeTurn // everything else
+        }
     }
 }
 
@@ -401,17 +409,17 @@ fn handle_inventory_input(
     use PlayerAction::*;
 
     match (tcod.key, tcod.key.text()) {
-        (Key {code: Enter, alt: true, ..}, _, ) => {
+        (Enter, alt: true, ..}, _, ) => {
             let fullscreen = tcod.root.is_fullscreen();
             tcod.root.set_fullscreen(!fullscreen);
             DidntTakeTurn
         },
-        (Key { code: Escape, ..}, _) => {
+        (Escape, ..}, _) => {
             log::info!("Changing game state to main");
             game.game_state = Box::new(GameState::main());
             DidntTakeTurn
         },
-        (Key { code: Text, .. }, _) => {
+        (Text, .. }, _) => {
             return handle_inventory(
                 tcod.key,
                 tcod,
@@ -435,17 +443,17 @@ fn handle_level_up_input(
     use PlayerAction::*;
 
     match (tcod.key, tcod.key.text()) {
-        (Key {code: Enter, alt: true, ..}, _, ) => {
+        (Enter, alt: true, ..}, _, ) => {
             let fullscreen = tcod.root.is_fullscreen();
             tcod.root.set_fullscreen(!fullscreen);
             DidntTakeTurn
         },
-        (Key { code: Escape, ..}, _) => {
+        (Escape, ..}, _) => {
             log::info!("Changing game state to main");
             game.game_state = Box::new(GameState::main());
             DidntTakeTurn
         },
-        (Key { code: Text, .. }, _) => {
+        (Text, .. }, _) => {
             return handle_level_up_selection(
                 tcod.key,
                 game,
