@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
-use bracket_lib::color::{GREEN, RED};
+use bracket_lib::color::{GREEN, RED, RGB};
 use bracket_lib::prelude::field_of_view;
 use bracket_lib::terminal::VirtualKeyCode::Escape;
 use crate::{MAP_HEIGHT, MAP_WIDTH};
@@ -44,11 +44,11 @@ pub fn player_move_or_attack(dx: i32, dy: i32, game: &mut GameEngine) {
 
 pub fn pick_item_up(object_id: usize, game: &mut GameEngine) {
     if game.entities[PLAYER].inventory.len() >= 26 {
-        game.messages.add(format!("Your pickets are full - you can't pickup the {}", game.entities[object_id].name), RED)
+        game.messages.add(format!("Your pickets are full - you can't pickup the {}", game.entities[object_id].name), RGB::from(RED))
     }
     else {
         let item = game.entities.swap_remove(object_id);
-        game.messages.add(format!("You picked up the {}", item.name), GREEN);
+        game.messages.add(format!("You picked up the {}", item.name), RGB::from(GREEN));
         game.add_event(GameEvent::from_type_with_data(
             EventType::PlayerPickupItem,
             HashMap::from([("item".to_string(), EventData::String(item.name.clone()))])
@@ -88,8 +88,9 @@ pub fn target_tile(
         let key = framework.con.key;
         let (x, y) = framework.con.mouse_pos;
 
-        let in_fov = (x < MAP_WIDTH) && (y < MAP_HEIGHT) && framework.fov.is_in_fov(x, y);
-        field_of_view()
+        // let in_fov = (x < MAP_WIDTH) && (y < MAP_HEIGHT) && framework.fov.is_in_fov(x, y);
+        let in_fov = true;
+        // field_of_view()
         if framework.con.left_click && in_fov && framework.con.mouse_visible {
             return Some((x, y))
         }

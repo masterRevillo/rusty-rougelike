@@ -1,7 +1,8 @@
 use std::borrow::BorrowMut;
 use std::cmp;
+use bracket_lib::color::{AZURE, DARK_GREEN, DARK_RED, GOLD, LIGHT_GOLDENROD, LIGHT_YELLOW, ORANGE, SKY_BLUE, VIOLET, WHITE, YELLOW};
+use bracket_lib::prelude::{DARK_ORANGE, RGB};
 use rand::Rng;
-use tcod::colors::{DARK_CRIMSON, DARK_ORANGE, DARKER_AMBER, DARKER_AZURE, DESATURATED_GREEN, GOLD, LIGHT_RED, LIGHT_YELLOW, LIGHTEST_SEPIA, LIGHTEST_YELLOW, SKY, VIOLET, WHITE};
 use crate::{Entity, GameEngine, IndependentSample, Transition, Weighted, WeightedChoice};
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
@@ -180,7 +181,7 @@ pub fn make_map(game :&mut GameEngine, level: u32) -> Map {
         }
     }
     let (last_room_x, last_room_y) = rooms[rooms.len() -1].center();
-    let mut stairs = Entity::new(last_room_x, last_room_y, '<', WHITE, "stairs", false);
+    let mut stairs = Entity::new(last_room_x, last_room_y, '<', RGB::from(WHITE), "stairs", false);
     stairs.always_visible = true;
     entities.push(stairs);
     map
@@ -197,7 +198,7 @@ pub fn make_boss_map(game: &mut GameEngine, _level: u32) -> Map {
     let (center_x, center_y) = boss_room.center();
 
     game.entities[PLAYER].set_pos(center_x, 3);
-    let mut boss = Entity::new(center_x, center_y, 'B', DARK_CRIMSON, "Boss", true);
+    let mut boss = Entity::new(center_x, center_y, 'B', RGB::from(DARK_RED), "Boss", true);
     boss.fighter = Some(Fighter {base_max_hp: 1, hp: 1, base_defense: 1, base_power: 1, xp: 1000, on_death: DeathCallback::Boss });
     // boss.fighter = Some(Fighter {base_max_hp: 50, hp: 50, base_defense: 8, base_power: 11, xp: 1000, on_death: DeathCallback::Monster });
     boss.ai = Some(Ai::Basic);
@@ -240,25 +241,25 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Entity>, level: u32) {
         if !is_blocked(x, y, map, objects) {
             let mut monster = match monster_choice.ind_sample(&mut rand::thread_rng()) {
                 "skeleton" => {
-                    let mut skeleton = Entity::new(x, y, 's', LIGHTEST_SEPIA, "Skeleton", true);
+                    let mut skeleton = Entity::new(x, y, 's', RGB::from(LIGHT_GOLDENROD), "Skeleton", true);
                     skeleton.fighter = Some(Fighter {base_max_hp: 25, hp: 25, base_defense: 1, base_power: 6, xp: 200, on_death: DeathCallback::Monster });
                     skeleton.ai = Some(Ai::Basic);
                     skeleton
                 },
                 "troll" => {
-                    let mut troll = Entity::new(x, y, 'T', DARKER_AMBER, "Troll", true);
+                    let mut troll = Entity::new(x, y, 'T', RGB::from(DARK_ORANGE), "Troll", true);
                     troll.fighter = Some(Fighter {base_max_hp: 30, hp: 30, base_defense: 2, base_power: 4, xp: 100, on_death: DeathCallback::Monster });
                     troll.ai = Some(Ai::Basic);
                     troll
                 },
                 "orc" => {
-                    let mut orc = Entity::new(x, y, 'o', DESATURATED_GREEN, "Orc", true);
+                    let mut orc = Entity::new(x, y, 'o', RGB::from(DARK_GREEN), "Orc", true);
                     orc.fighter = Some(Fighter {base_max_hp: 10, hp: 10, base_defense: 0, base_power: 3, xp: 35, on_death: DeathCallback::Monster });
                     orc.ai = Some(Ai::Basic);
                     orc
                 },
                 "spectre" => {
-                    let mut orc = Entity::new(x, y, 'o', DARKER_AZURE, "Spectre", true);
+                    let mut orc = Entity::new(x, y, 'o', RGB::from(AZURE), "Spectre", true);
                     orc.fighter = Some(Fighter {base_max_hp: 43, hp: 43, base_defense: 4, base_power: 9, xp: 250, on_death: DeathCallback::Monster });
                     orc.ai = Some(Ai::Basic);
                     orc
@@ -315,27 +316,27 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Entity>, level: u32) {
         if !is_blocked(x, y, map, objects) {
             let mut item = match item_choice.ind_sample(&mut rand::thread_rng()) {
                 Item::Heal => {
-                    let mut object = Entity::new(x, y, '!', VIOLET, "health potion", false);
+                    let mut object = Entity::new(x, y, '!', RGB::from(VIOLET), "health potion", false);
                     object.item = Some(Item::Heal);
                     object
                 },
                 Item::Lightning => {
-                    let mut object = Entity::new(x, y, '#', LIGHT_YELLOW, "scroll of lightning bolt", false);
+                    let mut object = Entity::new(x, y, '#', RGB::from(LIGHT_YELLOW), "scroll of lightning bolt", false);
                     object.item = Some(Item::Lightning);
                     object
                 },
                 Item::Fireball => {
-                    let mut object = Entity::new(x, y, '#', LIGHT_RED, "scroll of firball", false);
+                    let mut object = Entity::new(x, y, '#', RGB::from(ORANGE), "scroll of firball", false);
                     object.item = Some(Item::Fireball);
                     object
                 },
                 Item::Confuse => {
-                    let mut object = Entity::new(x, y, '#', LIGHTEST_YELLOW, "scroll of confusion", false);
+                    let mut object = Entity::new(x, y, '#', RGB::from(YELLOW), "scroll of confusion", false);
                     object.item = Some(Item::Confuse);
                     object
                 },
                 Item::Artifact{name: _, value: _} => {
-                    let mut object = Entity::new(x, y, '{', GOLD, "artifact", false);
+                    let mut object = Entity::new(x, y, '{', RGB::from(GOLD), "artifact", false);
                     object.item = Some(
                         Item::Artifact{
                             name: namegen::generate_artifact_name(2,7),
@@ -345,13 +346,13 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Entity>, level: u32) {
                     object
                 },
                 Item::Sword => {
-                    let mut object = Entity::new(x, y, '/', SKY, "sword", false);
+                    let mut object = Entity::new(x, y, '/', RGB::from(SKY_BLUE), "sword", false);
                     object.item = Some(Item::Sword);
                     object.equipment = Some(Equipment{equipped: false, slot: Slot::RightHand, power_bonus: 3, defense_bonus: 0, max_hp_bonus: 0});
                     object
                 },
                 Item::Shield => {
-                    let mut object = Entity::new(x, y, '[', DARK_ORANGE, "shield", false);
+                    let mut object = Entity::new(x, y, '[', RGB::from(DARK_ORANGE), "shield", false);
                     object.item = Some(Item::Shield);
                     object.equipment = Some(Equipment{equipped: false, slot: Slot::LeftHand, power_bonus: 0, defense_bonus: 1, max_hp_bonus: 0});
                     object

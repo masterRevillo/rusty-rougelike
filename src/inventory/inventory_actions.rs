@@ -1,5 +1,5 @@
 use std::borrow::BorrowMut;
-use tcod::colors::{DARK_RED, GOLD, LIGHT_BLUE, LIGHT_CYAN, LIGHT_GREEN, ORANGE, RED, WHITE, YELLOW};
+use bracket_lib::color::{DARK_RED, GOLD, LIGHT_BLUE, LIGHT_CYAN, LIGHT_GREEN, ORANGE, RED, RGB, WHITE, YELLOW};
 use crate::framework::GameFramework;
 use crate::game_engine::{GameEngine, PLAYER};
 use crate::entities::entity::Entity;
@@ -27,11 +27,11 @@ pub fn use_item(inventory_id: usize, tcod: &mut GameFramework, game: &mut GameEn
             }
             UseResult::UsedAndKept => {}
             UseResult::Cancelled => {
-                game.messages.add("Cancelled", WHITE);
+                game.messages.add("Cancelled", RGB::from(WHITE));
             }
         }
     } else {
-        game.messages.add(format!("The {} cannot be used.", game.entities[PLAYER].inventory[inventory_id].name), WHITE);
+        game.messages.add(format!("The {} cannot be used.", game.entities[PLAYER].inventory[inventory_id].name), RGB::from(WHITE));
     }
 }
 
@@ -42,7 +42,7 @@ pub fn drop_item(inventory_id: usize, _: &mut GameFramework, game: &mut GameEngi
         item.unequip(&mut game.messages);
     }
     item.set_pos(game.entities[PLAYER].x, game.entities[PLAYER].y);
-    game.messages.add(format!("You dropped the {}.", item.name), YELLOW);
+    game.messages.add(format!("You dropped the {}.", item.name), RGB::from(YELLOW));
     game.entities.push(item);
 }
 
@@ -77,7 +77,7 @@ pub fn cast_lightning(
     if let Some(monster_id) = monster_id {
         game.messages.add(
             format!("A lightning bolt strikes the {}! It deals {} points of damage.", entities[monster_id].name, LIGHTNING_DAMAGE),
-            LIGHT_BLUE
+            RGB::from(LIGHT_BLUE)
         );
         if let Some(xp) = entities[monster_id].take_damage(LIGHTNING_DAMAGE, event_bus) {
             // TODO: determine attacker and award xp to them, not automatically to player
@@ -85,7 +85,7 @@ pub fn cast_lightning(
         }
         UseResult::UsedUp
     } else {
-        messages.add("No enemies are within range.", RED);
+        messages.add("No enemies are within range.", RGB::from(RED));
         UseResult::Cancelled
     }
 }
@@ -99,16 +99,16 @@ pub fn cast_confuse(_inventory_id: usize, tcod: &mut GameFramework, game: &mut G
             previous_ai: Box::new(old_ai),
             num_turns: CONFUSE_NUM_TURNS
         });
-        game.messages.add(format!("The eyes of the {} glaze over, and it starts to stumble around.", game.entities[monster_id].name), LIGHT_GREEN);
+        game.messages.add(format!("The eyes of the {} glaze over, and it starts to stumble around.", game.entities[monster_id].name), RGB::from(LIGHT_GREEN));
         UseResult::UsedUp
     } else {
-        game.messages.add("No enemy is close enough to strike", RED);
+        game.messages.add("No enemy is close enough to strike", RGB::from(RED));
         UseResult::Cancelled
     }
 }
 
 pub fn cast_fireball(_inventory_id: usize, tcod: &mut GameFramework, game: &mut GameEngine) -> UseResult {
-    game.messages.add("Left-click a tile to cast a fireball at it; right-click or Esc to cancel", LIGHT_CYAN);
+    game.messages.add("Left-click a tile to cast a fireball at it; right-click or Esc to cancel", RGB::from(LIGHT_CYAN));
     let (x, y) = match target_tile(tcod, game, None) {
         Some(tile_pos) => tile_pos,
         None => return UseResult::Cancelled,
@@ -116,11 +116,11 @@ pub fn cast_fireball(_inventory_id: usize, tcod: &mut GameFramework, game: &mut 
     let entities: &mut Vec<Entity> = game.entities.borrow_mut();
     let event_bus = game.event_bus.borrow_mut();
     let messages = game.messages.borrow_mut();
-    messages.add(format!("The fireball explodes, burning everything within {} tiles.", FIREBALL_RADIUS), ORANGE);
+    messages.add(format!("The fireball explodes, burning everything within {} tiles.", FIREBALL_RADIUS), RGB::from(ORANGE));
     let mut xp_to_gain = 0;
     for (id, obj) in entities.iter_mut().enumerate() {
         if obj.distance(x, y) <= FIREBALL_RADIUS as f32 && obj.fighter.is_some() {
-            game.messages.add(format!("The {} gets burned for {} hit points.", obj.name, FIREBALL_DAMAGE), ORANGE);
+            game.messages.add(format!("The {} gets burned for {} hit points.", obj.name, FIREBALL_DAMAGE), RGB::from(ORANGE));
             if let Some(xp) = obj.take_damage(FIREBALL_DAMAGE, event_bus) {
                 if id != PLAYER {
                     xp_to_gain += xp;
@@ -139,17 +139,17 @@ pub fn examine_artifact(inventory_id: usize, _tcod: &mut GameFramework, game: &m
         Some(item) => {
             match item {
                 Item::Artifact {name, value} => {
-                    game.messages.add(format!("This artifact is named {} and has a value of {}", name, value), GOLD);
+                    game.messages.add(format!("This artifact is named {} and has a value of {}", name, value), RGB::from(GOLD));
                     return UseResult::UsedAndKept
                 },
                 _ => {
-                    game.messages.add("Error: examine_artifact was called with an item that was not an artifact", DARK_RED);
+                    game.messages.add("Error: examine_artifact was called with an item that was not an artifact", RGB::from(DARK_RED));
                     return UseResult::Cancelled
                 }
             };
         },
         None => {
-            game.messages.add("Error: examine_artifact was called when there was no item", DARK_RED);
+            game.messages.add("Error: examine_artifact was called when there was no item", RGB::from(DARK_RED));
             return UseResult::Cancelled
         }
     };

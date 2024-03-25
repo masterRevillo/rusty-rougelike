@@ -73,6 +73,7 @@ mod util {
     pub mod namegen;
     pub mod messages;
     pub mod mut_two;
+    pub mod dser;
 }
 
 const SCREEN_WIDTH: i32 = 80;

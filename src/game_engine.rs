@@ -293,7 +293,7 @@ impl GameState {
 use std::borrow::Borrow;
 use bracket_lib::color::{DARK_RED, LIGHT_GRAY, LIGHT_GREEN, RGBA};
 use bracket_lib::prelude::VirtualKeyCode::Escape;
-use bracket_lib::terminal::{BLACK, VirtualKeyCode};
+use bracket_lib::terminal::{BLACK, letter_to_option, VirtualKeyCode};
 use crate::game_engine::PlayerAction::{DidntTakeTurn, TookTurn};
 use crate::inventory::inventory_actions::{drop_item, use_item};
 
@@ -311,9 +311,9 @@ pub fn handle_keys(framework: &mut GameFramework, game: &mut GameEngine) -> Play
     use VirtualKeyCode::*;
 
     let player_alive = game.entities[PLAYER].alive;
-    match (framework.con.key, player_alive) {
+    match framework.con.key {
         None => DidntTakeTurn,
-        Some(key) => match key {
+        Some(key) => match (key, player_alive) {
             // (Enter, alt: true, ..}, _, _,) => {               // the 2 dots signify that we dont care about the other values of Key. Without them, the code wouldnt compile until all values were supplied
             //     let fullscreen = framework.root.is_fullscreen();
             //     framework.root.set_fullscreen(!fullscreen);
@@ -338,7 +338,7 @@ pub fn handle_keys(framework: &mut GameFramework, game: &mut GameEngine) -> Play
                 player_move_or_attack(1, 0, game);
                 TookTurn
             },
-            (Home, true) | (NumPad7, true) => {
+            (Home, true) | (Numpad7, true) => {
                 player_move_or_attack(-1, -1, game);
                 TookTurn
             },
@@ -354,7 +354,7 @@ pub fn handle_keys(framework: &mut GameFramework, game: &mut GameEngine) -> Play
                 player_move_or_attack(1, 1, game);
                 TookTurn
             },
-            (NumPad5, true) | (Period, true) => {
+            (Numpad5, true) | (Period, true) => {
                 TookTurn
             },
             (G, true) => {
@@ -402,71 +402,78 @@ pub fn handle_keys(framework: &mut GameFramework, game: &mut GameEngine) -> Play
 }
 
 fn handle_inventory_input(
-    tcod: &mut GameFramework,
+    framework: &mut GameFramework,
     game: &mut GameEngine,
 ) -> PlayerAction {
-    use tcod::input::KeyCode::*;
+    use VirtualKeyCode::*;
     use PlayerAction::*;
 
-    match (tcod.key, tcod.key.text()) {
-        (Enter, alt: true, ..}, _, ) => {
-            let fullscreen = tcod.root.is_fullscreen();
-            tcod.root.set_fullscreen(!fullscreen);
-            DidntTakeTurn
-        },
-        (Escape, ..}, _) => {
-            log::info!("Changing game state to main");
-            game.game_state = Box::new(GameState::main());
-            DidntTakeTurn
-        },
-        (Text, .. }, _) => {
-            return handle_inventory(
-                tcod.key,
-                tcod,
-                game,
-                match game.game_state.state_type {
-                    StateType::UseFromInventory => &use_item,
-                    _ => &drop_item
+    match framework.con.key {
+        None => DidntTakeTurn,
+        Some(key) => match key {
+            // Enter => {
+                // let fullscreen = framework.root.is_fullscreen();
+                // framework.root.set_fullscreen(!fullscreen);
+                // DidntTakeTurn
+            // },
+            Escape => {
+                log::info!("Changing game state to main");
+                game.game_state = Box::new(GameState::main());
+                DidntTakeTurn
+            },
+            _ => {
+                let selection = letter_to_option(key);
+                if selection > -1 && selection < game.entities[PLAYER].inventory.len() as i32 {
+                    return handle_inventory(
+                        key,
+                        framework,
+                        game,
+                        match game.game_state.state_type {
+                            StateType::UseFromInventory => &use_item,
+                            _ => &drop_item
+                        })
                 }
-            )
-        },
-        _ => DidntTakeTurn
+                DidntTakeTurn
+            }
+        }
     }
 }
 
 
 fn handle_level_up_input(
-    tcod: &mut GameFramework,
+    framework: &mut GameFramework,
     game: &mut GameEngine,
 ) -> PlayerAction {
-    use tcod::input::KeyCode::*;
+    use VirtualKeyCode::*;
     use PlayerAction::*;
 
-    match (tcod.key, tcod.key.text()) {
-        (Enter, alt: true, ..}, _, ) => {
-            let fullscreen = tcod.root.is_fullscreen();
-            tcod.root.set_fullscreen(!fullscreen);
-            DidntTakeTurn
-        },
-        (Escape, ..}, _) => {
-            log::info!("Changing game state to main");
-            game.game_state = Box::new(GameState::main());
-            DidntTakeTurn
-        },
-        (Text, .. }, _) => {
-            return handle_level_up_selection(
-                tcod.key,
-                game,
-            )
-        },
-        _ => DidntTakeTurn
+    match framework.con.key {
+        None => DidntTakeTurn,
+        Some(key) => match key {
+            // (Enter, alt: true, ..}, _, ) => {
+            //     let fullscreen = tcod.root.is_fullscreen();
+            //     tcod.root.set_fullscreen(!fullscreen);
+            //     DidntTakeTurn
+            // },
+            Escape => {
+                log::info!("Changing game state to main");
+                game.game_state = Box::new(GameState::main());
+                DidntTakeTurn
+            },
+            _ => {
+                return handle_level_up_selection(
+                    key,
+                    game,
+                )
+            },
+        }
     }
 }
 
 
 fn handle_inventory(
-    key: Key,
-    tcod: &mut GameFramework,
+    key: VirtualKeyCode,
+    framework: &mut GameFramework,
     game: &mut GameEngine,
     inventory_action: &'static dyn Fn(usize, &mut GameFramework, &mut GameEngine)
 ) -> PlayerAction {
@@ -484,10 +491,11 @@ fn handle_inventory(
 
         }).collect()
     };
-    if key.printable.is_alphabetic() {
-        let index = key.printable.to_ascii_lowercase() as usize - 'a' as usize;
+    let selection = letter_to_option(key);
+    if selection > -1 && selection < inventory.len() as i32 {
+        let index = selection as usize;
         if index < options.len() {
-            inventory_action(index, tcod, game);
+            inventory_action(index, framework, game);
             log::info!("Changing game state to main");
             game.game_state = Box::new(GameState::main());
             TookTurn
@@ -511,36 +519,32 @@ fn check_for_level_up(game: &mut GameEngine) {
 
 
 fn handle_level_up_selection(
-    key: Key,
+    key: VirtualKeyCode,
     game: &mut GameEngine,
 ) -> PlayerAction {
     let player = &mut game.entities[PLAYER];
     let fighter = player.fighter.as_mut().unwrap();
     let level_up_xp = LEVEL_UP_BASE + LEVEL_UP_FACTOR * player.level;
-    if key.printable.is_alphabetic() {
-        let index = key.printable.to_ascii_lowercase() as usize - 'a' as usize;
-        // TODO: dont hardcode to 3 - somehow determine number of upgrade choices
-        if index < 3 {
-            match index {
-                0 => {
-                    fighter.base_max_hp += 20;
-                    fighter.hp += 20;
-                }
-                1 => {
-                    fighter.base_power += 1;
-                }
-                2 => {
-                    fighter.base_defense += 1;
-                }
-                _ => unreachable!()
+    let selection = letter_to_option(key);
+    // TODO: dont hardcode to 3 - somehow determine number of upgrade choices
+    if selection < 3 {
+        match selection as usize {
+            0 => {
+                fighter.base_max_hp += 20;
+                fighter.hp += 20;
             }
-            fighter.xp -= level_up_xp;
-            log::info!("Changing game state to main");
-            game.game_state = Box::new(GameState::main());
-            DidntTakeTurn
-        } else {
-            DidntTakeTurn
+            1 => {
+                fighter.base_power += 1;
+            }
+            2 => {
+                fighter.base_defense += 1;
+            }
+            _ => unreachable!()
         }
+        fighter.xp -= level_up_xp;
+        log::info!("Changing game state to main");
+        game.game_state = Box::new(GameState::main());
+        DidntTakeTurn
     } else {
         DidntTakeTurn
     }

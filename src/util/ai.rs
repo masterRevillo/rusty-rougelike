@@ -1,8 +1,9 @@
 use std::borrow::BorrowMut;
+use bracket_lib::color::RED;
+use bracket_lib::prelude::RGB;
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use tcod::colors::RED;
 
 use crate::entities::entity::Entity;
 use crate::entities::entity_actions::move_towards;
@@ -40,7 +41,7 @@ fn ai_basic(monster_id: usize, tcod: &GameFramework, game: &mut GameEngine) -> A
     let entities: &mut Vec<Entity> = game.entities.borrow_mut();
     let event_bus = game.event_bus.borrow_mut();
     let (monster_x, monster_y) = entities[monster_id].pos();
-    if tcod.fov.is_in_fov(monster_x, monster_y) {
+    // if tcod.fov.is_in_fov(monster_x, monster_y) {
         if entities[monster_id].distance_to(&entities[PLAYER]) >= 2.0 {
             // move towards player if far away
             let (player_x, player_y) = entities[PLAYER].pos();
@@ -54,7 +55,7 @@ fn ai_basic(monster_id: usize, tcod: &GameFramework, game: &mut GameEngine) -> A
             event_bus.add_event(GameEvent::from_type(EventType::MonsterAttack));
 
         }
-    }
+    // }
     Ai::Basic
 }
 
@@ -66,7 +67,7 @@ fn ai_confused(monster_id:usize, _tcod: &GameFramework, game: &mut GameEngine, p
     let entities = game.entities.borrow_mut();
     move_towards(monster_id, x, y, map, entities);
     if num_turns == 0 {
-        messages.add(format!("The {} is no longer confused", game.entities[monster_id].name), RED);
+        messages.add(format!("The {} is no longer confused", game.entities[monster_id].name), RGB::from(RED));
         *previous_ai
     } else {
         Ai::Confused{ previous_ai: previous_ai, num_turns: num_turns - 1}

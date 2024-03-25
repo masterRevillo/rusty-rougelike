@@ -7,7 +7,7 @@ use bracket_lib::color::{BLUE, DARK_RED, RED, RGB, WHITE};
 // use tcod::{BackgroundFlag, Console, TextAlignment};
 // use tcod::colors::{DARK_RED, RED, SKY, WHITE};
 
-use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor, initialize_fov, load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, SCREEN_HEIGHT, SCREEN_WIDTH, GameFramework};
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor,  load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, SCREEN_HEIGHT, SCREEN_WIDTH, GameFramework};
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
@@ -36,7 +36,7 @@ pub fn main_menu(framework: &mut GameFramework) {
             Some(1) => {
                 match load_game() {
                     Ok(mut game) => {
-                        initialize_fov(framework, &game.map);
+                        // initialize_fov(framework, &game.map);
                         game.run_game_loop(framework);
                     },
                     Err(_e) => {
@@ -122,10 +122,10 @@ pub fn new_game(tcod: &mut GameFramework) -> GameEngine {
     });
     game.entities[PLAYER].inventory.push(dagger);
 
-    initialize_fov(tcod, &game.map);
+    // initialize_fov(tcod, &game.map);
 
     game.messages.add(
-        "Welcome to the Halls of Ruzt - there's no time to change your mind...", RED
+        "Welcome to the Halls of Ruzt - there's no time to change your mind...", RGB::from(RED)
     );
 
     game

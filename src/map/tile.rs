@@ -1,17 +1,16 @@
-use tcod::Color;
-use tcod::colors::DARKEST_RED;
+use bracket_lib::color::{DARK_RED, RGB};
 use serde::{Deserialize, Serialize};
 use rand::Rng;
 
 
-const COLOR_DARK_WALL_SURFACE: Color = Color{r: 43, g: 0, b: 0};
-const COLOR_DARK_WALL: Color = DARKEST_RED;
-const COLOR_LIGHT_WALL_SURFACE: Color = Color{r: 93, g: 10, b: 10};
-const COLOR_LIGHT_WALL: Color = Color {r: 127, g: 30, b: 20};
-const COLOR_DARK_GROUND_SURFACE: Color = Color {r: 15,g: 8,b: 8,};
-const COLOR_DARK_GROUND: Color = Color {r: 20,g: 10,b: 10,};
-const COLOR_LIGHT_GROUND_SURFACE: Color = Color {r: 150, g: 101, b: 90};
-const COLOR_LIGHT_GROUND: Color = Color {r: 170, g: 131, b: 96};
+const COLOR_DARK_WALL_SURFACE: RGB = RGB{r: 43.0, g: 0.0, b: 0.0};
+const COLOR_DARK_WALL: RGB = RGB::from(DARK_RED);
+const COLOR_LIGHT_WALL_SURFACE: RGB = RGB{r: 93.0, g: 10.0, b: 10.0};
+const COLOR_LIGHT_WALL: RGB = RGB {r: 127.0, g: 30.0, b: 20.0};
+const COLOR_DARK_GROUND_SURFACE: RGB = RGB {r: 15.0,g: 8.0,b: 8.0,};
+const COLOR_DARK_GROUND: RGB = RGB {r: 20.0,g: 10.0,b: 10.0,};
+const COLOR_LIGHT_GROUND_SURFACE: RGB = RGB {r: 150.0, g: 101.0, b: 90.0};
+const COLOR_LIGHT_GROUND: RGB = RGB {r: 170.0, g: 131.0, b: 96.0};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum TileType {
@@ -25,11 +24,11 @@ pub struct Tile {                   // Debug lets us print out the value of the 
     pub(crate) blocked: bool,
     pub block_sight: bool,
     pub explored: bool,
-    pub lit_color: Color,
-    pub dark_color: Color,
+    pub lit_color: RGB,
+    pub dark_color: RGB,
     pub surface_char: char,
-    pub surface_lit_color: Color,
-    pub surface_dark_color: Color,
+    pub surface_lit_color: RGB,
+    pub surface_dark_color: RGB,
 }
 
 impl Tile {

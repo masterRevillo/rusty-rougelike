@@ -53,7 +53,7 @@ pub fn inventory_menu(inventory: &[Entity], header: &str, con: &mut BTerm) -> Op
     }
 }
 
-pub fn msgbox(text: &str, width: i32, con: &mut Console) {
+pub fn msgbox(text: &str, width: i32, con: &mut BTerm) {
     let options: &[&str] = &[];
     menu(text, options, width, con);
 }
@@ -200,7 +200,7 @@ pub fn render_bar(
     con.draw_box(x, y, total_width, 1, back_color, RGBA::from(BLACK));
 
     // render the bar on top
-    con.set_default_background(bar_color);
+    // con.set_default_background(bar_color);
     if bar_width > 0 {
         con.draw_box(x, y, bar_width, 1, bar_color, RGBA::from(BLACK));
     }

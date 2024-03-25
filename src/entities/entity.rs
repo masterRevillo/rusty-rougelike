@@ -2,7 +2,7 @@ use core::option::Option;
 use core::option::Option::{None, Some};
 use std::collections::HashMap;
 use bracket_lib::color::{LIGHT_GREEN, LIGHT_YELLOW, RED, RGB, RGBA};
-use bracket_lib::prelude::to_cp437;
+use bracket_lib::prelude::{BTerm, to_cp437};
 use bracket_lib::terminal::Console;
 // use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
 // use tcod::console::{BackgroundFlag, Console};
@@ -56,7 +56,7 @@ impl Entity {
     }
 
     // draw self onto given console
-    pub fn draw(&self, con: &mut dyn Console, camera: &mut Camera) {             // dyn: Console is a "trait", not a struct. dyn is basically used to announce that its a trait
+    pub fn draw(&self, con: &mut BTerm, camera: &mut Camera) {             // dyn: Console is a "trait", not a struct. dyn is basically used to announce that its a trait
         let (x_in_camera, y_in_camera) = camera.get_pos_in_camera(self.x, self.y);
         // con.set_default_foreground(self.color);                  // pointers to traits are double the size of pointers to structs, so there some implications with using it
         if camera.in_bounds(x_in_camera, y_in_camera) {
@@ -142,30 +142,30 @@ impl Entity {
 
     pub fn equip(&mut self, messages: &mut Messages) {
         if self.item.is_none() {
-            messages.add(format!("Cannot equip {:?} because it's not an Item.", self ), RED);
+            messages.add(format!("Cannot equip {:?} because it's not an Item.", self ), RGB::from(RED));
             return;
         };
         if let Some(ref mut equipment) = self.equipment {
             if !equipment.equipped {
                 equipment.equipped = true;
-                messages.add(format!("Equipped {} on {}.", self.name, equipment.slot), LIGHT_GREEN);
+                messages.add(format!("Equipped {} on {}.", self.name, equipment.slot), RGB::from(LIGHT_GREEN));
             }
         } else {
-            messages.add(format!("Cannot equip {:?} because it's not an Equipment.", self ), RED);
+            messages.add(format!("Cannot equip {:?} because it's not an Equipment.", self ), RGB::from(RED));
         }
     }
 
     pub fn unequip(&mut self, messages: &mut Messages) {
         if self.item.is_none() {
-            messages.add(format!("Cannot unequip {:?} because it's not an Item.", self ), RED);
+            messages.add(format!("Cannot unequip {:?} because it's not an Item.", self ), RGB::from(RED));
             return;
         }
         if let Some(ref mut equipment) = self.equipment {
             if equipment.equipped {
-                messages.add(format!("Unequipped {} from {}.", self.name, equipment.slot), LIGHT_YELLOW);
+                messages.add(format!("Unequipped {} from {}.", self.name, equipment.slot), RGB::from(LIGHT_YELLOW));
             }
         } else {
-            messages.add(format!("Cannot unequip {:?} because it's not an Equipment.", self ), RED);
+            messages.add(format!("Cannot unequip {:?} because it's not an Equipment.", self ), RGB::from(RED));
         }
     }
 
