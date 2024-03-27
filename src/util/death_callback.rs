@@ -1,8 +1,10 @@
 use std::collections::HashMap;
-use bracket_lib::color::{DARK_RED, RGB};
-use crate::{Entity, EventBus, EventData, EventType, GameEvent};
+
 use serde::{Deserialize, Serialize};
 
+use crate::{Entity, EventBus, EventData, EventType, GameEvent};
+use crate::util::color::Color;
+use crate::util::color::DARK_RED;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum DeathCallback {
@@ -27,14 +29,14 @@ impl DeathCallback {
 fn player_death(player: &mut Entity, event_bus: &mut EventBus) {
     // game.messages.add("You died!", RED);
     player.char = '%';
-    player.color = RGB::from(DARK_RED);
+    player.color = Color::from(DARK_RED);
     event_bus.add_event(GameEvent::from_type (EventType::PlayerDie));
 }
 
 fn monster_death(monster: &mut Entity, event_bus: &mut EventBus) {
     // game.messages.add(format!("{} died. It gives you {} xp.", monster.name, monster.fighter.unwrap().xp), ORANGE);
     monster.char = '%';
-    monster.color = RGB::from(DARK_RED);
+    monster.color = Color::from(DARK_RED);
     monster.blocks = false;
     monster.fighter = None;
     monster.ai = None;
@@ -45,7 +47,7 @@ fn monster_death(monster: &mut Entity, event_bus: &mut EventBus) {
 fn boss_death(monster: &mut Entity, event_bus: &mut EventBus) {
     // game.messages.add(format!("{} died. It gives you {} xp.", monster.name, monster.fighter.unwrap().xp), ORANGE);
     monster.char = '%';
-    monster.color = RGB::from(DARK_RED);
+    monster.color = Color::from(DARK_RED);
     monster.blocks = false;
     monster.fighter = None;
     monster.ai = None;

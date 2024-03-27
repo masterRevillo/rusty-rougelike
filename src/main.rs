@@ -24,7 +24,7 @@ use crate::events::game_event_processing::{EventBus, EventData, EventProcessor, 
 use crate::framework::GameFramework;
 use crate::game_engine::{GameEngine, StateType};
 use crate::graphics::camera::Camera;
-use crate::setup_game::{save_game};
+use crate::setup_game::{main_menu, new_game, save_game};
 use crate::util::transition::Transition;
 
 mod events {
@@ -73,7 +73,7 @@ mod util {
     pub mod namegen;
     pub mod messages;
     pub mod mut_two;
-    pub mod dser;
+    pub mod color;
 }
 
 const SCREEN_WIDTH: i32 = 80;
@@ -92,8 +92,12 @@ struct State {
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut BTerm) {
-        ctx.cls();
-        ctx.print(1, 1, "Hello Rust World");
+        let mut framework = GameFramework {
+            con: ctx.to_owned()
+        };
+        self.engine.run_game_loop(&mut framework)
+        // ctx.cls();
+        // ctx.print(1, 1, "Hello Rust World");
     }
 }
 
@@ -105,15 +109,24 @@ fn main() -> BError{
 
     // tcod::system::set_fps(LIMIT_FPS);
 
-    let console = BTermBuilder::simple(SCREEN_WIDTH, SCREEN_HEIGHT).unwrap()
+    let mut console = BTermBuilder::simple(SCREEN_WIDTH, SCREEN_HEIGHT).unwrap()
         // .with_font("consolas12x12_gs_tc.png", 12, 12)
         .with_title("A Rusty Rougelike")
         .build()?;
 
+    let mut framework = GameFramework{
+        con: console.clone(),
+    };
+
+
+
     let gs = State{
         current_state: StateType::MainMenu,
+        engine: new_game()
 
     };
+    // main_menu(&mut framework);
+
     main_loop(console, gs)
 
 
@@ -134,5 +147,4 @@ fn main() -> BError{
     //     mouse: Default::default()
     // };
     //
-    // main_menu(&mut tcod);
 }

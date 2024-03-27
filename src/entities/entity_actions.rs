@@ -1,9 +1,8 @@
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
-use bracket_lib::color::{GREEN, RED, RGB};
-use bracket_lib::prelude::field_of_view;
+
 use bracket_lib::terminal::VirtualKeyCode::Escape;
-use crate::{MAP_HEIGHT, MAP_WIDTH};
+
 use crate::entities::entity::Entity;
 use crate::events::game_event_processing::{EventData, EventType, GameEvent};
 use crate::framework::GameFramework;
@@ -11,6 +10,7 @@ use crate::game_engine::{GameEngine, PLAYER};
 use crate::inventory::inventory_actions::get_equipped_id_in_slot;
 use crate::map::map_functions::is_blocked;
 use crate::map::mapgen::Map;
+use crate::util::color::{Color, GREEN, RED};
 use crate::util::mut_two::mut_two;
 
 pub fn move_by(id: usize, dx: i32, dy: i32, map: &Map, entity: &mut [Entity]) {
@@ -44,11 +44,11 @@ pub fn player_move_or_attack(dx: i32, dy: i32, game: &mut GameEngine) {
 
 pub fn pick_item_up(object_id: usize, game: &mut GameEngine) {
     if game.entities[PLAYER].inventory.len() >= 26 {
-        game.messages.add(format!("Your pickets are full - you can't pickup the {}", game.entities[object_id].name), RGB::from(RED))
+        game.messages.add(format!("Your pickets are full - you can't pickup the {}", game.entities[object_id].name), Color::from(RED))
     }
     else {
         let item = game.entities.swap_remove(object_id);
-        game.messages.add(format!("You picked up the {}", item.name), RGB::from(GREEN));
+        game.messages.add(format!("You picked up the {}", item.name), Color::from(GREEN));
         game.add_event(GameEvent::from_type_with_data(
             EventType::PlayerPickupItem,
             HashMap::from([("item".to_string(), EventData::String(item.name.clone()))])

@@ -1,5 +1,4 @@
 use std::any::Any;
-use bracket_lib::color::{RGB, WHITE};
 
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +6,7 @@ use crate::{EventData, EventProcessor, EventType, GameEvent};
 use crate::entities::entity::Entity;
 use crate::events::game_event_processing::EventBusReader;
 use crate::map::mapgen::Map;
+use crate::util::color::{Color, WHITE};
 
 #[derive(Serialize, Deserialize)]
 pub struct GameOccurrenceEventProcessor {
@@ -33,7 +33,7 @@ impl EventProcessor for GameOccurrenceEventProcessor {
                     match event_data {
                         Some(data) => match data {
                             EventData::TupleI32I32((x,y)) => {
-                                let mut stairs = Entity::new(*x, *y - 1, '<', RGB::from(WHITE), "stairs", false);
+                                let mut stairs = Entity::new(*x, *y - 1, '<', Color::from(WHITE), "stairs", false);
                                 stairs.always_visible = true;
                                 entities.push(stairs);
                             },

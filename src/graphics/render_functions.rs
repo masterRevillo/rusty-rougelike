@@ -1,9 +1,9 @@
 use bracket_lib::color::{BLACK, DARK_GOLDENROD, RGBA, WHITE};
-use bracket_lib::prelude::{BTerm, letter_to_option, VirtualKeyCode};
+use bracket_lib::prelude::{BTerm, letter_to_option};
 use bracket_lib::terminal::Console;
 
-use crate::{Entity, Map, MAP_HEIGHT, MAP_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, GameFramework};
-use crate::game_engine::{GameEngine, LEVEL_SCREEN_WIDTH, LEVEL_UP_BASE, LEVEL_UP_FACTOR, PLAYER};
+use crate::{Entity, GameFramework, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::game_engine::{GameEngine, LEVEL_SCREEN_WIDTH, PLAYER};
 
 pub const INVENTORY_WIDTH: i32 = 50;
 

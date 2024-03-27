@@ -1,9 +1,10 @@
-use bracket_lib::color::{RED, RGB, VIOLET};
 use crate::entities::entity::Entity;
-use crate::framework::GameFramework;
-use crate::game_engine::{ FOV_LIGHT_WALLS, GameEngine, PLAYER, TORCH_RADIUS};
-use crate::map::mapgen::{from_dungeon_level, LEVEL_TYPE_TRANSITION, make_boss_map, make_map, Map};
 use crate::entities::entity_actions::target_tile;
+use crate::framework::GameFramework;
+use crate::game_engine::{GameEngine, PLAYER};
+use crate::map::mapgen::{from_dungeon_level, LEVEL_TYPE_TRANSITION, make_boss_map, make_map, Map};
+use crate::util::color::{RED, VIOLET};
+use crate::util::color::Color;
 
 pub fn is_blocked(x: i32, y: i32, map: &Map, entity: &[Entity]) -> bool {
     if map[x as usize][y as usize].blocked {
@@ -15,10 +16,10 @@ pub fn is_blocked(x: i32, y: i32, map: &Map, entity: &[Entity]) -> bool {
 }
 
 pub fn next_level(tcod: &mut GameFramework, game: &mut GameEngine) {
-    game.messages.add("You rest for a minute and recover your strength", RGB::from(VIOLET));
+    game.messages.add("You rest for a minute and recover your strength", Color::from(VIOLET));
     let heal_hp = game.entities[PLAYER].max_hp() / 2;
     game.entities[PLAYER].heal(heal_hp);
-    game.messages.add("You descend deeper into the dungeon ...", RGB::from(RED));
+    game.messages.add("You descend deeper into the dungeon ...", Color::from(RED));
     game.dungeon_level += 1;
     let dungeon_level = game.dungeon_level;
     game.map = match from_dungeon_level(LEVEL_TYPE_TRANSITION, dungeon_level) {

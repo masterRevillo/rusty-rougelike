@@ -1,7 +1,6 @@
 use core::option::Option;
 use core::option::Option::{None, Some};
 use std::collections::HashMap;
-use bracket_lib::color::{LIGHT_GREEN, LIGHT_YELLOW, RED, RGB, RGBA};
 use bracket_lib::prelude::{BTerm, to_cp437};
 use bracket_lib::terminal::Console;
 // use tcod::colors::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
@@ -14,6 +13,7 @@ use crate::events::game_event_processing::{EventBus, EventData, EventType, GameE
 use crate::graphics::camera::Camera;
 use crate::items::item::Item;
 use crate::util::ai::Ai;
+use crate::util::color::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
 
 /// This is a generic object: the player, a monster, an item, the stairs...
 /// It's always represented by a character on screen.
@@ -22,7 +22,7 @@ pub struct Entity {
     pub x: i32,
     pub y: i32,
     pub char: char,
-    pub color: RGB,
+    pub color: Color,
     pub name: String,
     pub blocks: bool,
     pub alive: bool,
@@ -36,14 +36,14 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn new(x: i32, y: i32, char: char, color: RGB, name: &str, blocks: bool) -> Self {
+    pub fn new(x: i32, y: i32, char: char, color: Color, name: &str, blocks: bool) -> Self {
         Entity {
-            x: x,
-            y: y,
-            char: char,
-            color: color,
+            x,
+            y,
+            char,
+            color,
             name: name.into(),
-            blocks: blocks,
+            blocks,
             alive: false,
             fighter: None,
             ai: None,
@@ -63,8 +63,8 @@ impl Entity {
             con.set(
                 x_in_camera,
                 y_in_camera,
-                RGBA::from(self.color),
-                RGBA::from(self.color),
+                self.color.to_rgba(),
+                self.color.to_rgba(),
                 to_cp437(self.char),
             )
         }
@@ -142,30 +142,30 @@ impl Entity {
 
     pub fn equip(&mut self, messages: &mut Messages) {
         if self.item.is_none() {
-            messages.add(format!("Cannot equip {:?} because it's not an Item.", self ), RGB::from(RED));
+            messages.add(format!("Cannot equip {:?} because it's not an Item.", self ), Color::from(RED));
             return;
         };
         if let Some(ref mut equipment) = self.equipment {
             if !equipment.equipped {
                 equipment.equipped = true;
-                messages.add(format!("Equipped {} on {}.", self.name, equipment.slot), RGB::from(LIGHT_GREEN));
+                messages.add(format!("Equipped {} on {}.", self.name, equipment.slot), Color::from(LIGHT_GREEN));
             }
         } else {
-            messages.add(format!("Cannot equip {:?} because it's not an Equipment.", self ), RGB::from(RED));
+            messages.add(format!("Cannot equip {:?} because it's not an Equipment.", self ), Color::from(RED));
         }
     }
 
     pub fn unequip(&mut self, messages: &mut Messages) {
         if self.item.is_none() {
-            messages.add(format!("Cannot unequip {:?} because it's not an Item.", self ), RGB::from(RED));
+            messages.add(format!("Cannot unequip {:?} because it's not an Item.", self ), Color::from(RED));
             return;
         }
         if let Some(ref mut equipment) = self.equipment {
             if equipment.equipped {
-                messages.add(format!("Unequipped {} from {}.", self.name, equipment.slot), RGB::from(LIGHT_YELLOW));
+                messages.add(format!("Unequipped {} from {}.", self.name, equipment.slot), Color::from(LIGHT_YELLOW));
             }
         } else {
-            messages.add(format!("Cannot unequip {:?} because it's not an Equipment.", self ), RGB::from(RED));
+            messages.add(format!("Cannot unequip {:?} because it's not an Equipment.", self ), Color::from(RED));
         }
     }
 

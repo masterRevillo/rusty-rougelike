@@ -2,7 +2,8 @@ use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
-use bracket_lib::color::{BLUE, DARK_RED, RED, RGB, WHITE};
+use std::ptr::null;
+use bracket_lib::prelude::BTerm;
 
 // use tcod::{BackgroundFlag, Console, TextAlignment};
 // use tcod::colors::{DARK_RED, RED, SKY, WHITE};
@@ -13,6 +14,7 @@ use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
 use crate::game_engine::{GameState, PLAYER};
 use crate::items::item::Item;
+use crate::util::color::{BLUE, Color, RED, WHITE};
 use crate::util::death_callback::DeathCallback;
 
 pub fn main_menu(framework: &mut GameFramework) {
@@ -30,7 +32,7 @@ pub fn main_menu(framework: &mut GameFramework) {
 
         match choice {
             Some(0) => {
-                let mut game= new_game(framework);
+                let mut game= new_game();
                 game.run_game_loop(framework);
             }
             Some(1) => {
@@ -64,9 +66,9 @@ pub fn load_game() -> Result<GameEngine, Box<dyn Error>> {
     Ok(result)
 }
 
-pub fn new_game(tcod: &mut GameFramework) -> GameEngine {
+pub fn new_game() -> GameEngine {
     let config = load_configs();
-    let mut player = Entity::new(0, 0, '@', RGB::from(WHITE), "player", true);
+    let mut player = Entity::new(0, 0, '@', Color::from(WHITE), "player", true);
     player.alive = true;
     player.fighter = Some(Fighter {
         base_max_hp: 30,
@@ -105,14 +107,14 @@ pub fn new_game(tcod: &mut GameFramework) -> GameEngine {
     game.map = map;
 
 
-    game.set_audio_engine(config);
-    game.play_background_music();
+    // game.set_audio_engine(config);
+    // game.play_background_music();
 
     let mut dagger = Entity::new(
         0,
         0,
         '-',
-        RGB::from(BLUE),
+        Color::from(BLUE),
         "dagger",
         false
     );
@@ -125,7 +127,7 @@ pub fn new_game(tcod: &mut GameFramework) -> GameEngine {
     // initialize_fov(tcod, &game.map);
 
     game.messages.add(
-        "Welcome to the Halls of Ruzt - there's no time to change your mind...", RGB::from(RED)
+        "Welcome to the Halls of Ruzt - there's no time to change your mind...", Color::from(RED)
     );
 
     game

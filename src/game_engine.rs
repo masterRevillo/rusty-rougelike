@@ -1,17 +1,25 @@
+use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 
+use bracket_lib::color::RGBA;
+use bracket_lib::prelude::VirtualKeyCode::Escape;
+use bracket_lib::terminal::{BLACK, letter_to_option, VirtualKeyCode};
 use serde::{Deserialize, Serialize};
+
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, GameFramework, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages};
+use crate::audio::audio_engine::AudioEngine;
+use crate::game_engine::PlayerAction::{DidntTakeTurn, TookTurn};
+use crate::graphics::render_functions::{BAR_WIDTH, get_names_under_mouse, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, render_bar, render_inventory_menu, render_level_up_menu};
+use crate::inventory::inventory_actions::{drop_item, use_item};
+use crate::map::mapgen::Map;
+use crate::save_game;
+use crate::util::ai::ai_take_turn;
+use crate::util::color::{DARK_RED, LIGHT_GRAY, LIGHT_GREEN};
+
 // use tcod::{BackgroundFlag, Console, TextAlignment};
 // use tcod::colors::{BLACK, DARKER_RED, LIGHT_GREEN, LIGHT_GREY, WHITE};
 // use tcod::console::{blit, Root};
 // use tcod::map::FovAlgorithm;
-
-use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, SCREEN_WIDTH, GameFramework};
-use crate::save_game;
-use crate::audio::audio_engine::AudioEngine;
-use crate::graphics::render_functions::{BAR_WIDTH, display_menu, get_names_under_mouse, inventory_menu, INVENTORY_WIDTH, menu, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, PANEL_HEIGHT, PANEL_Y, render_bar, render_inventory_menu, render_level_up_menu};
-use crate::map::mapgen::Map;
-use crate::util::ai::ai_take_turn;
 
 //fov settings
 // pub const FOV_ALGO: FovAlgorithm = FovAlgorithm::Basic;
@@ -132,7 +140,8 @@ impl GameEngine {
         // get names at mouse location
         // framework.panel.set_default_foreground(LIGHT_GREY);
         // framework.panel.print_ex(1, 0, BackgroundFlag::None, TextAlignment::Left, get_names_under_mouse(framework.mouse, entities, &framework.fov));
-        framework.con.print_color(1, 0, LIGHT_GRAY, BLACK, get_names_under_mouse(framework, entities));
+        let names_under_mouse = get_names_under_mouse(framework, entities);
+        framework.con.print_color(1, 0, LIGHT_GRAY, BLACK, names_under_mouse);
         // display message log
         let mut y = MSG_HEIGHT as i32;
         for &(ref msg, color) in messages.iter().rev() {     // iterate through the messages in reverse order
@@ -144,8 +153,8 @@ impl GameEngine {
             }
             // framework.panel.set_default_foreground(color);
             // framework.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
-            framework.con.draw_box(MSG_X, y, MSG_WIDTH, 0, RGBA::from(color), RGBA::from(BLACK));
-            framework.con.print_color(MSG_X, y, RGBA::from(color), RGBA::from(BLACK), msg);
+            framework.con.draw_box(MSG_X, y, MSG_WIDTH, 0, color.to_rgba(), RGBA::from(BLACK));
+            framework.con.print_color(MSG_X, y, color.to_rgba(), RGBA::from(BLACK), msg);
         }
         // display game level
         framework.con.print(
@@ -289,13 +298,6 @@ impl GameState {
         }
     }
 }
-
-use std::borrow::Borrow;
-use bracket_lib::color::{DARK_RED, LIGHT_GRAY, LIGHT_GREEN, RGBA};
-use bracket_lib::prelude::VirtualKeyCode::Escape;
-use bracket_lib::terminal::{BLACK, letter_to_option, VirtualKeyCode};
-use crate::game_engine::PlayerAction::{DidntTakeTurn, TookTurn};
-use crate::inventory::inventory_actions::{drop_item, use_item};
 
 impl Default for GameState {
     fn default() -> Self {

@@ -1,6 +1,5 @@
 use std::borrow::BorrowMut;
-use bracket_lib::color::RED;
-use bracket_lib::prelude::RGB;
+use crate::util::color::RED;
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -11,6 +10,7 @@ use crate::events::game_event_processing::{EventType, GameEvent};
 use crate::framework::GameFramework;
 use crate::game_engine::{GameEngine, PLAYER};
 use crate::map::mapgen::{Map, MAP_HEIGHT, MAP_WIDTH};
+use crate::util::color::Color;
 use crate::util::mut_two::mut_two;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -67,7 +67,7 @@ fn ai_confused(monster_id:usize, _tcod: &GameFramework, game: &mut GameEngine, p
     let entities = game.entities.borrow_mut();
     move_towards(monster_id, x, y, map, entities);
     if num_turns == 0 {
-        messages.add(format!("The {} is no longer confused", game.entities[monster_id].name), RGB::from(RED));
+        messages.add(format!("The {} is no longer confused", game.entities[monster_id].name), Color::from(RED));
         *previous_ai
     } else {
         Ai::Confused{ previous_ai: previous_ai, num_turns: num_turns - 1}
