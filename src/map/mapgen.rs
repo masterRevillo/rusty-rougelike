@@ -1,6 +1,9 @@
 use std::borrow::BorrowMut;
 use std::cmp;
+use bracket_lib::algorithm_traits::BaseMap;
+use bracket_lib::prelude::{Algorithm2D, Point};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use crate::{Entity, GameEngine, IndependentSample, Transition, Weighted, WeightedChoice};
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
@@ -8,7 +11,7 @@ use crate::entities::slot::Slot;
 use crate::game_engine::PLAYER;
 use crate::items::item::Item;
 use crate::map::map_functions::is_blocked;
-use crate::map::tile::Tile;
+use crate::map::tile::{Tile, TileType};
 use crate::util::ai::Ai;
 use crate::util::color::{AZURE, Color, DARK_GREEN, DARK_ORANGE, DARK_RED, GOLD, LIGHT_GOLDENROD, LIGHT_YELLOW, ORANGE, SKY_BLUE, VIOLET, WHITE, YELLOW};
 use crate::util::death_callback::DeathCallback;
@@ -62,7 +65,32 @@ pub const LEVEL_TYPE_TRANSITION: &[Transition] = &[
     Transition{ level: 10, value: 2 },
 ];
 
-pub type Map = Vec<Vec<Tile>>;
+
+#[derive(Serialize, Deserialize)]
+pub struct Map {
+    pub tiles: Vec<Vec<Tile>>
+}
+
+impl Map {
+    pub fn new() -> Self {
+        let mut tiles = vec![vec![]];
+        Map { tiles }
+    }
+
+}
+
+impl BaseMap for Map {
+    fn is_opaque(&self, idx: usize) -> bool {
+        let y = idx % (MAP_WIDTH as usize);
+        self.tiles[idx / (MAP_WIDTH as usize)][y].tile_type == TileType::Wall
+    }
+}
+
+impl Algorithm2D for Map {
+    fn dimensions(&self) -> Point {
+        Point::new(MAP_WIDTH, MAP_HEIGHT)
+    }
+}
 
 pub fn in_map_bounds(x: i32, y: i32) -> bool {
     0 <= x && x < MAP_WIDTH && 0 <= y && y < MAP_HEIGHT
@@ -103,20 +131,20 @@ impl Rect {
 fn create_room(room: Rect, map: &mut Map) {
     for x in (room.x1 + 1)..room.x2 {       // range is inclusive at beginning, but exclusive at end
         for y in (room.y1 +1)..room.y2 {    // so room.x2 does NOT become an empty tile
-            map[x as usize][y as usize] = Tile::ground();
+            map.tiles[x as usize][y as usize] = Tile::ground();
         }
     }
 }
 
 fn create_h_tunnel(x1: i32, x2: i32, y: i32, map: &mut Map) {
     for x in cmp::min(x1, x2)..(cmp::max(x1, x2) + 1) {
-        map[x as usize][y as usize] = Tile::ground();
+        map.tiles[x as usize][y as usize] = Tile::ground();
     }
 }
 
 fn create_v_tunnel(y1: i32, y2: i32, x: i32, map: &mut Map) {
     for y in cmp::min(y1, y2)..(cmp::max(y1, y2) + 1) {
-        map[x as usize][y as usize] = Tile::ground();
+        map.tiles[x as usize][y as usize] = Tile::ground();
     }
 }
 
@@ -127,12 +155,14 @@ pub fn make_map(game :&mut GameEngine, level: u32) -> Map {
     // new map tile. It works, and since the surface chars are only decorative now, I guess its fine
     let entities: &mut Vec<Entity> = game.entities.borrow_mut();
 
-    let mut map = vec![vec![Tile::ground(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];    // vec! is a shorthand macro that initializes the Vec and fills it with the specified value
+    let mut map_tiles = vec![vec![Tile::ground(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];    // vec! is a shorthand macro that initializes the Vec and fills it with the specified value
     for x in 0..MAP_WIDTH as usize {
         for y in 0..MAP_HEIGHT as usize {
-            map[x][y] = Tile::wall();
+            map_tiles[x][y] = Tile::wall();
         }
     }
+    let mut map = Map { tiles: map_tiles };
+
 
     // the syntax is vec![value_to_fill, number_of_entries]
 
@@ -187,7 +217,8 @@ pub fn make_map(game :&mut GameEngine, level: u32) -> Map {
 }
 
 pub fn make_boss_map(game: &mut GameEngine, _level: u32) -> Map {
-    let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
+    let mut map_tiles = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
+    let mut map = Map { tiles: map_tiles };
     assert_eq!(&game.entities[PLAYER] as *const _, &game.entities[0] as *const _);
     game.entities.truncate(1);
 

@@ -1,9 +1,10 @@
 use bracket_lib::color::{BLACK, DARK_GOLDENROD, RGBA, WHITE};
-use bracket_lib::prelude::{BTerm, letter_to_option};
+use bracket_lib::prelude::{BTerm, field_of_view, letter_to_option};
 use bracket_lib::terminal::Console;
 
 use crate::{Entity, GameFramework, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::game_engine::{GameEngine, LEVEL_SCREEN_WIDTH, PLAYER};
+use crate::map::mapgen::{Map, MAP_HEIGHT, MAP_WIDTH};
 
 pub const INVENTORY_WIDTH: i32 = 50;
 
@@ -16,18 +17,19 @@ pub const MSG_X: i32 = BAR_WIDTH + 2;
 pub const MSG_WIDTH: i32 = SCREEN_WIDTH - BAR_WIDTH - 2;
 pub const MSG_HEIGHT: usize = PANEL_HEIGHT as usize - 1;
 
-// pub fn initialize_fov(tcod: &mut GameFramework, map: &Map) {
-//     for y in 0..MAP_HEIGHT as usize {
-//         for x in 0..MAP_WIDTH as usize {
-//             tcod.fov.set(
-//                 x as i32,
-//                 y as i32,
-//                 !map[x][y].block_sight,
-//                 !map[x][y].blocked,
-//             );
-//         }
-//     }
-// }
+pub fn initialize_fov(framework: &mut GameFramework, map: &Map) {
+    for y in 0..MAP_HEIGHT as usize {
+        for x in 0..MAP_WIDTH as usize {
+            framework.fov.set(
+                x as i32,
+                y as i32,
+                !map.tiles[x][y].block_sight,
+                !map.tiles[x][y].blocked,
+            );
+        }
+        // field_of_view()
+    }
+}
 
 pub fn inventory_menu(inventory: &[Entity], header: &str, con: &mut BTerm) -> Option<usize> {
     let options = if inventory.len() == 0 {

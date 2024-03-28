@@ -7,7 +7,7 @@ use crate::util::color::{RED, VIOLET};
 use crate::util::color::Color;
 
 pub fn is_blocked(x: i32, y: i32, map: &Map, entity: &[Entity]) -> bool {
-    if map[x as usize][y as usize].blocked {
+    if map.tiles[x as usize][y as usize].blocked {
         return true;
     }
     entity.

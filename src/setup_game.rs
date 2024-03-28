@@ -14,6 +14,7 @@ use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
 use crate::game_engine::{GameState, PLAYER};
 use crate::items::item::Item;
+use crate::map::mapgen::Map;
 use crate::util::color::{BLUE, Color, RED, WHITE};
 use crate::util::death_callback::DeathCallback;
 
@@ -82,7 +83,7 @@ pub fn new_game() -> GameEngine {
     let entities = vec![player];
 
     let mut game = GameEngine {
-        map: vec![vec![]],
+        map: Map::new(),
         messages: Messages::new(),
         dungeon_level: 1,
         event_bus: EventBus {

@@ -12,7 +12,7 @@ const COLOR_DARK_GROUND: Color = Color {r: 20.0,g: 10.0,b: 10.0,};
 const COLOR_LIGHT_GROUND_SURFACE: Color = Color {r: 150.0, g: 101.0, b: 90.0};
 const COLOR_LIGHT_GROUND: Color = Color {r: 170.0, g: 131.0, b: 96.0};
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum TileType {
     Ground,
     Wall

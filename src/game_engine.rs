@@ -88,29 +88,29 @@ impl GameEngine {
 
         if fov_recompute {
             let player = &self.entities[PLAYER];
-            // tcod.fov.compute_fov(player.x, player.y, TORCH_RADIUS, FOV_LIGHT_WALLS, FOV_ALGO)
+            framework.fov.compute_fov(player.x, player.y, TORCH_RADIUS, map)
         }
         let entities: &mut Vec<Entity> = self.entities.borrow_mut();
         for y in 0..MAP_HEIGHT {
             for x in 0..MAP_WIDTH {
                 let (x_in_camera, y_in_camera) = camera.get_pos_in_camera(x, y);
                 if camera.in_bounds(x_in_camera, y_in_camera) && in_map_bounds(x, y) {
-                    // let visible = framework.fov.is_in_fov(x, y);
-                    let visible = true;
+                    let visible = framework.fov.is_in_fov(x, y);
                     let color = match visible {
-                        false => map[x as usize][y as usize].dark_color,
-                        true => map[x as usize][y as usize].lit_color,
+                        false => map.tiles[x as usize][y as usize].dark_color,
+                        true => map.tiles[x as usize][y as usize].lit_color,
                     };
                     let surface_color = match visible {
-                        false => map[x as usize][y as usize].surface_dark_color,
-                        true => map[x as usize][y as usize].surface_lit_color,
+                        false => map.tiles[x as usize][y as usize].surface_dark_color,
+                        true => map.tiles[x as usize][y as usize].surface_lit_color,
                     };
-                    let explored = &mut map[x as usize][y as usize].explored;
+                    let explored = &mut map.tiles[x as usize][y as usize].explored;
                     if visible {
                         *explored = true;
                     }
                     if *explored {
-                        let c = map[x as usize][y as usize].surface_char;
+                        let c = map.tiles[x as usize][y as usize].surface_char;
+                        framework.con.print_color(x_in_camera, y_in_camera, surface_color.to_rgba(), color.to_rgba(), c);
                         // framework.con.set_default_foreground(surface_color);
                         // framework.con.put_char(x_in_camera, y_in_camera, c, BackgroundFlag::None);
                         // framework.con.set_char_background(x_in_camera, y_in_camera, color, BackgroundFlag::Set);
@@ -121,8 +121,8 @@ impl GameEngine {
         let mut to_draw: Vec<_> = entities
             .iter()
             .filter(|o|
-                        // framework.fov.is_in_fov(o.x, o.y) ||
-                            (o.always_visible && map[o.x as usize][o.y as usize].explored)  // is always visible and has been explored
+                        framework.fov.is_in_fov(o.x, o.y) ||
+                            (o.always_visible && map.tiles[o.x as usize][o.y as usize].explored)  // is always visible and has been explored
             )
             .collect();
         to_draw.sort_by(|o1, o2|{o1.blocks.cmp(&o2.blocks)});
@@ -186,9 +186,10 @@ impl GameEngine {
 
     pub fn run_game_loop(&mut self, framework: &mut GameFramework) {
         // for FOV recompute by setting player position to a weird value
-        let mut previous_player_position = (-1, -1);
+        // let mut previous_player_position = (-1, -1);
 
-        while !framework.con.quitting {
+        // while !framework.con.quitting {
+        //     println!("Running game loop...");
 
             // match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
             //     Some((_, Event::Mouse(m))) => framework.mouse = m,
@@ -196,19 +197,19 @@ impl GameEngine {
             //     _ => framework.key = Default::default(),
             // }
             //
-            let fov_recompute = previous_player_position != (self.entities[PLAYER].pos());
+        // let previous_player_position = self.entities[PLAYER].pos();
+        // let fov_recompute = previous_player_position != (self.entities[PLAYER].pos());
+        let fov_recompute = true;
+        self.render_all(framework, fov_recompute);
 
-            self.render_all(framework, fov_recompute);
+        // framework.root.flush();
 
-            // framework.root.flush();
+        check_for_level_up(self);
 
-            check_for_level_up(self);
-
-            previous_player_position = self.entities[PLAYER].pos();
             let player_action = (self.game_state.handle_input)(framework, self);
             if player_action == PlayerAction::Exit {
                 save_game(self).unwrap();
-                break;
+                framework.con.quit()
             }
             self.process_events();
 
@@ -220,7 +221,7 @@ impl GameEngine {
                 }
             }
         }
-    }
+    // }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -21,7 +21,7 @@ use util::messages::Messages;
 
 use crate::config::game_config::{GameConfig, load_configs};
 use crate::events::game_event_processing::{EventBus, EventData, EventProcessor, EventType, GameEvent};
-use crate::framework::GameFramework;
+use crate::framework::{FovMap, GameFramework};
 use crate::game_engine::{GameEngine, StateType};
 use crate::graphics::camera::Camera;
 use crate::setup_game::{main_menu, new_game, save_game};
@@ -92,11 +92,12 @@ struct State {
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut BTerm) {
+        ctx.cls();
         let mut framework = GameFramework {
-            con: ctx.to_owned()
+            con: ctx.to_owned(),
+            fov: FovMap::new()
         };
         self.engine.run_game_loop(&mut framework)
-        // ctx.cls();
         // ctx.print(1, 1, "Hello Rust World");
     }
 }
@@ -113,12 +114,6 @@ fn main() -> BError{
         // .with_font("consolas12x12_gs_tc.png", 12, 12)
         .with_title("A Rusty Rougelike")
         .build()?;
-
-    let mut framework = GameFramework{
-        con: console.clone(),
-    };
-
-
 
     let gs = State{
         current_state: StateType::MainMenu,
