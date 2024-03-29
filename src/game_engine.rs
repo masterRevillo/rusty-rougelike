@@ -110,7 +110,7 @@ impl GameEngine {
                     }
                     if *explored {
                         let c = map.tiles[x as usize][y as usize].surface_char;
-                        framework.con.print_color(x_in_camera, y_in_camera, surface_color.to_rgba(), color.to_rgba(), c);
+                        framework.con.set(x_in_camera, y_in_camera, surface_color.to_rgba(), color.to_rgba(), c);
                         // framework.con.set_default_foreground(surface_color);
                         // framework.con.put_char(x_in_camera, y_in_camera, c, BackgroundFlag::None);
                         // framework.con.set_char_background(x_in_camera, y_in_camera, color, BackgroundFlag::Set);
@@ -127,7 +127,7 @@ impl GameEngine {
             .collect();
         to_draw.sort_by(|o1, o2|{o1.blocks.cmp(&o2.blocks)});
         for object in to_draw {
-            object.draw(&mut framework.con, camera);
+            object.draw(&mut framework.con, camera, map.tiles[object.x as usize][object.y as usize].lit_color);
         }
         // reset GUI panel
         // framework.root.set_default_foreground(WHITE);
@@ -530,7 +530,8 @@ fn handle_level_up_selection(
     let level_up_xp = LEVEL_UP_BASE + LEVEL_UP_FACTOR * player.level;
     let selection = letter_to_option(key);
     // TODO: dont hardcode to 3 - somehow determine number of upgrade choices
-    if selection < 3 {
+    if (0..3).contains(&selection) {
+        println!("selection: {}", selection);
         match selection as usize {
             0 => {
                 fighter.base_max_hp += 20;

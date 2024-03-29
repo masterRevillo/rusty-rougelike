@@ -3,14 +3,14 @@ use rand::Rng;
 use crate::util::color::{Color, DARK_RED};
 
 
-const COLOR_DARK_WALL_SURFACE: Color = Color{r: 43.0, g: 0.0, b: 0.0};
-const COLOR_DARK_WALL: Color = Color{r: 139.0, g: 0.0, b: 0.0};
-const COLOR_LIGHT_WALL_SURFACE: Color = Color{r: 93.0, g: 10.0, b: 10.0};
-const COLOR_LIGHT_WALL: Color = Color {r: 127.0, g: 30.0, b: 20.0};
-const COLOR_DARK_GROUND_SURFACE: Color = Color {r: 15.0,g: 8.0,b: 8.0,};
-const COLOR_DARK_GROUND: Color = Color {r: 20.0,g: 10.0,b: 10.0,};
-const COLOR_LIGHT_GROUND_SURFACE: Color = Color {r: 150.0, g: 101.0, b: 90.0};
-const COLOR_LIGHT_GROUND: Color = Color {r: 170.0, g: 131.0, b: 96.0};
+const COLOR_DARK_WALL_SURFACE: (u8, u8, u8) = (43, 0, 0);
+const COLOR_DARK_WALL: (u8, u8, u8) = (139,  0,  0);
+const COLOR_LIGHT_WALL_SURFACE: (u8, u8, u8) = (93,  10, 10);
+const COLOR_LIGHT_WALL: (u8, u8, u8) = (127, 30, 20);
+const COLOR_DARK_GROUND_SURFACE: (u8, u8, u8) = (15, 8, 8);
+const COLOR_DARK_GROUND: (u8, u8, u8) = (20, 10, 10);
+const COLOR_LIGHT_GROUND_SURFACE: (u8, u8, u8) = (150, 101, 90);
+const COLOR_LIGHT_GROUND: (u8, u8, u8) = (170, 131, 96);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum TileType {
@@ -48,11 +48,11 @@ impl Tile {
             blocked: false,
             block_sight: false,
             explored: false,
-            lit_color: COLOR_LIGHT_GROUND,
-            dark_color: COLOR_DARK_GROUND,
+            lit_color: Color::from(COLOR_LIGHT_GROUND),
+            dark_color: Color::from(COLOR_DARK_GROUND),
             surface_char: c.0,
-            surface_lit_color: c.1,
-            surface_dark_color: c.2
+            surface_lit_color: Color::from(c.1),
+            surface_dark_color: Color::from(c.2)
         }
     }
 
@@ -78,11 +78,11 @@ impl Tile {
             blocked: true,
             block_sight: true,
             explored: false,
-            lit_color: COLOR_LIGHT_WALL,
-            dark_color: COLOR_DARK_WALL,
+            lit_color: Color::from(COLOR_LIGHT_WALL),
+            dark_color: Color::from(COLOR_DARK_WALL),
             surface_char: c.0,
-            surface_lit_color: c.1,
-            surface_dark_color: c.2
+            surface_lit_color: Color::from(c.1),
+            surface_dark_color: Color::from(c.2)
         }
     }
 }

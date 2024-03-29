@@ -81,8 +81,20 @@ impl Map {
 
 impl BaseMap for Map {
     fn is_opaque(&self, idx: usize) -> bool {
-        let y = idx % (MAP_WIDTH as usize);
-        self.tiles[idx / (MAP_WIDTH as usize)][y].tile_type == TileType::Wall
+
+        /*
+        1, 2, 3, 4, 5, 6
+        7, 8, 9, 10,11,12
+        13,14,15,16,17,18
+        19,20,21,22,23,24
+        25,26,27,28,29,30
+        31,32,33,34,35,36
+         */
+        // width 4, height 5
+
+        // false
+        let y = idx % (MAP_HEIGHT as usize);
+        self.tiles[idx / ((MAP_HEIGHT - 1) as usize)][y].tile_type == TileType::Wall
     }
 }
 

@@ -11,6 +11,14 @@ pub struct Color {
 
 impl Color {
 
+    pub fn from_u8(r: u8, g: u8, b: u8) -> Color {
+        Self {
+            r: f32::from(r) / 255.0,
+            g: f32::from(g) / 255.0,
+            b: f32::from(b) / 255.0,
+        }
+    }
+
     pub fn from_rgb(rgb: RGB) -> Color {
         Self { r: rgb.r, g: rgb.g, b: rgb.b }
     }

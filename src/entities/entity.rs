@@ -13,7 +13,7 @@ use crate::events::game_event_processing::{EventBus, EventData, EventType, GameE
 use crate::graphics::camera::Camera;
 use crate::items::item::Item;
 use crate::util::ai::Ai;
-use crate::util::color::{Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
+use crate::util::color::{BLACK, Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
 
 /// This is a generic object: the player, a monster, an item, the stairs...
 /// It's always represented by a character on screen.
@@ -56,7 +56,7 @@ impl Entity {
     }
 
     // draw self onto given console
-    pub fn draw(&self, con: &mut BTerm, camera: &mut Camera) {             // dyn: Console is a "trait", not a struct. dyn is basically used to announce that its a trait
+    pub fn draw(&self, con: &mut BTerm, camera: &mut Camera, bg_color: Color) {             // dyn: Console is a "trait", not a struct. dyn is basically used to announce that its a trait
         let (x_in_camera, y_in_camera) = camera.get_pos_in_camera(self.x, self.y);
         // con.set_default_foreground(self.color);                  // pointers to traits are double the size of pointers to structs, so there some implications with using it
         if camera.in_bounds(x_in_camera, y_in_camera) {
@@ -64,7 +64,7 @@ impl Entity {
                 x_in_camera,
                 y_in_camera,
                 self.color.to_rgba(),
-                self.color.to_rgba(),
+                bg_color.to_rgba(),
                 to_cp437(self.char),
             )
         }
