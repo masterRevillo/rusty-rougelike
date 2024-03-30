@@ -1,5 +1,6 @@
 use std::borrow::BorrowMut;
 use std::cmp;
+use std::convert::TryInto;
 use bracket_lib::algorithm_traits::BaseMap;
 use bracket_lib::prelude::{Algorithm2D, Point};
 use rand::Rng;
@@ -81,27 +82,33 @@ impl Map {
 
 impl BaseMap for Map {
     fn is_opaque(&self, idx: usize) -> bool {
-
-        /*
-        1, 2, 3, 4, 5, 6
-        7, 8, 9, 10,11,12
-        13,14,15,16,17,18
-        19,20,21,22,23,24
-        25,26,27,28,29,30
-        31,32,33,34,35,36
-         */
-        // width 4, height 5
-
-        // false
-        let y = idx % (MAP_HEIGHT as usize);
-        self.tiles[idx / ((MAP_HEIGHT - 1) as usize)][y].tile_type == TileType::Wall
+        let y = idx % (MAP_WIDTH as usize);
+        self.tiles[idx / (MAP_WIDTH as usize)][y].tile_type == TileType::Wall
     }
 }
 
 impl Algorithm2D for Map {
+    fn point2d_to_index(&self, pt: Point) -> usize {
+        let bounds = self.dimensions();
+        ((pt.x * bounds.x) + pt.y)
+            .try_into()
+            .expect("Not a valid usize. Did something go negative?")
+    }
+
+    fn index_to_point2d(&self, idx: usize) -> Point {
+        let bounds = self.dimensions();
+        let w: usize = bounds
+            .x
+            .try_into()
+            .expect("Not a valid usize. Did something go negative?");
+        Point::new(idx / w, idx % w)
+    }
+
     fn dimensions(&self) -> Point {
         Point::new(MAP_WIDTH, MAP_HEIGHT)
     }
+
+
 }
 
 pub fn in_map_bounds(x: i32, y: i32) -> bool {

@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
-use bracket_lib::prelude::{BError, BTerm, GameState, main_loop};
+use bracket_lib::prelude::{BError, BTerm, embedded_resource, GameState, link_resource, main_loop};
 use bracket_lib::terminal::BTermBuilder;
 use log::LevelFilter;
 use rand::distributions::{IndependentSample, Weighted, WeightedChoice};
@@ -102,18 +102,24 @@ impl GameState for State {
     }
 }
 
+
 fn main() -> BError{
+
     SimpleLogger::new()
         .with_colors(true)
         .with_level(LevelFilter::Info)
         .init().unwrap();
 
     // tcod::system::set_fps(LIMIT_FPS);
+    // embedded_resource!(CONSOLAS_FONT, "../consolas12x12_gs_tc.png");
+    // link_resource!(CONSOLAS_FONT, "consolas12x12_gs_tc.png");
 
     let mut console = BTermBuilder::simple(SCREEN_WIDTH, SCREEN_HEIGHT).unwrap()
         // .with_font("consolas12x12_gs_tc.png", 12, 12)
+        .with_tile_dimensions(12, 12)
         .with_title("A Rusty Rougelike")
         .build()?;
+    console.with_post_scanlines(true);
 
     let gs = State{
         current_state: StateType::MainMenu,
