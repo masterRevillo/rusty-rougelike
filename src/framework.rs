@@ -3,6 +3,7 @@ use bracket_lib::pathfinding::field_of_view;
 use bracket_lib::prelude::{BTerm, Point};
 use crate::map::mapgen::{Map, MAP_HEIGHT, MAP_WIDTH};
 use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::util::string_splitter::split_str;
 
 pub struct GameFramework {
     pub con: BTerm,
@@ -30,13 +31,23 @@ impl GameFramework {
         // let mut window = Offscreen::new(width, height);
         // window.set_default_foreground(WHITE);
         // window.print_rect_ex(0, 0, width, height, BackgroundFlag::None, TextAlignment::Left, header);
-        self.con.draw_box(10, 10, width, height, RGBA::from(WHITE), RGBA::from(BLACK));
+
+        let x = SCREEN_WIDTH / 2 - width / 2;
+        let y = SCREEN_HEIGHT / 2 - height / 2 + 1;
+        self.con.draw_box(x, y, width, height, RGBA::from(WHITE), RGBA::from(BLACK));
+
+        let split_header = split_str(header, width as usize - 4);
+        for (index, line) in split_header.iter().enumerate() {
+            self.con.print_color_centered(y + index as i32, RGBA::from(WHITE), RGBA::from(BLACK), line);
+        }
+        // self.con.print_color_centered(y, RGBA::from(WHITE), RGBA::from(BLACK), header);
 
         // print the options
+        let options_offset = split_header.len() as i32 + 1;
         for (index, option_text) in options.iter().enumerate() {
             let menu_letter = (b'a' + index as u8) as char;
             let text = format!("({}) {}", menu_letter, option_text.as_ref());
-            self.con.print_color(0, 1 + index as i32, RGBA::from(WHITE), RGBA::from(BLACK), text.as_str());
+            self.con.print_color(x, y + options_offset + index as i32, RGBA::from(WHITE), RGBA::from(BLACK), text.as_str());
         }
 
         let x = SCREEN_WIDTH / 2 - width / 2;

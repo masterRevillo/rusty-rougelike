@@ -74,6 +74,7 @@ mod util {
     pub mod messages;
     pub mod mut_two;
     pub mod color;
+    pub mod string_splitter;
 }
 
 const SCREEN_WIDTH: i32 = 80;
