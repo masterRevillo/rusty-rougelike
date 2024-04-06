@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{EventData, EventProcessor, EventType, GameEvent};
 use crate::entities::entity::Entity;
+use crate::entities::entity::EntityType::Stairs;
 use crate::events::game_event_processing::EventBusReader;
 use crate::map::mapgen::Map;
 use crate::util::color::{Color, WHITE};
@@ -33,7 +34,7 @@ impl EventProcessor for GameOccurrenceEventProcessor {
                     match event_data {
                         Some(data) => match data {
                             EventData::TupleI32I32((x,y)) => {
-                                let mut stairs = Entity::new(*x, *y - 1, '<', Color::from(WHITE), "stairs", false);
+                                let mut stairs = Entity::new(*x, *y - 1, '<', Color::from(WHITE), "stairs", false, Stairs);
                                 stairs.always_visible = true;
                                 entities.push(stairs);
                             },

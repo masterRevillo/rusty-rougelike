@@ -75,6 +75,7 @@ mod util {
     pub mod mut_two;
     pub mod color;
     pub mod string_splitter;
+    pub mod string_utils;
 }
 
 const SCREEN_WIDTH: i32 = 80;
@@ -120,7 +121,7 @@ fn main() -> BError{
         .with_tile_dimensions(12, 12)
         .with_title("A Rusty Rougelike")
         .build()?;
-    console.with_post_scanlines(true);
+    // console.with_post_scanlines(true);
 
     let gs = State{
         current_state: StateType::MainMenu,

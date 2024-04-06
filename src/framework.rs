@@ -34,16 +34,16 @@ impl GameFramework {
 
         let x = SCREEN_WIDTH / 2 - width / 2;
         let y = SCREEN_HEIGHT / 2 - height / 2 + 1;
-        self.con.draw_box(x, y, width, height, RGBA::from(WHITE), RGBA::from(BLACK));
-
         let split_header = split_str(header, width as usize - 4);
+        let options_offset = split_header.len() as i32 + 1;
+
+        self.con.draw_box(x, y, width, height + options_offset, RGBA::from(WHITE), RGBA::from(BLACK));
         for (index, line) in split_header.iter().enumerate() {
             self.con.print_color_centered(y + index as i32, RGBA::from(WHITE), RGBA::from(BLACK), line);
         }
         // self.con.print_color_centered(y, RGBA::from(WHITE), RGBA::from(BLACK), header);
 
         // print the options
-        let options_offset = split_header.len() as i32 + 1;
         for (index, option_text) in options.iter().enumerate() {
             let menu_letter = (b'a' + index as u8) as char;
             let text = format!("({}) {}", menu_letter, option_text.as_ref());

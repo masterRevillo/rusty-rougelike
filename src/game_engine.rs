@@ -1,20 +1,21 @@
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 
-use bracket_lib::color::RGBA;
+use bracket_lib::color::{RGBA, WHITE};
 use bracket_lib::prelude::VirtualKeyCode::Escape;
 use bracket_lib::terminal::{BLACK, letter_to_option, VirtualKeyCode};
 use serde::{Deserialize, Serialize};
 
-use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, GameFramework, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages};
+use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventProcessor, GameConfig, GameEvent, GameFramework, in_map_bounds, MAP_HEIGHT, MAP_WIDTH, Messages, SCREEN_WIDTH};
 use crate::audio::audio_engine::AudioEngine;
 use crate::game_engine::PlayerAction::{DidntTakeTurn, TookTurn};
-use crate::graphics::render_functions::{BAR_WIDTH, get_names_under_mouse, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, render_bar, render_inventory_menu, render_level_up_menu};
+use crate::graphics::render_functions::{BAR_WIDTH, get_names_under_mouse, MSG_HEIGHT, MSG_WIDTH, MSG_X, msgbox, PANEL_HEIGHT, PANEL_Y, render_bar, render_inventory_menu, render_level_up_menu};
 use crate::inventory::inventory_actions::{drop_item, use_item};
 use crate::map::mapgen::Map;
 use crate::save_game;
 use crate::util::ai::ai_take_turn;
 use crate::util::color::{DARK_RED, LIGHT_GRAY, LIGHT_GREEN};
+use crate::util::string_splitter::split_str;
 
 // use tcod::{BackgroundFlag, Console, TextAlignment};
 // use tcod::colors::{BLACK, DARKER_RED, LIGHT_GREEN, LIGHT_GREY, WHITE};
@@ -134,32 +135,38 @@ impl GameEngine {
         // framework.panel.set_default_background(BLACK);
         // framework.panel.clear();
         // display player stats
+        framework.con.draw_box(0, PANEL_Y, SCREEN_WIDTH-1, PANEL_HEIGHT-1, RGBA::from(WHITE), RGBA::from(BLACK));
+
         let hp = entities[PLAYER].fighter.map_or(0, |f| f.hp);
         let max_hp = entities[PLAYER].max_hp();
-        render_bar(&mut framework.con, 1, 1, BAR_WIDTH, "HP", hp, max_hp, RGBA::from(LIGHT_GREEN), RGBA::from(DARK_RED));
+        render_bar(&mut framework.con, 1, PANEL_Y + 1, BAR_WIDTH, "HP", hp, max_hp, RGBA::from(LIGHT_GREEN), RGBA::from(DARK_RED));
         // get names at mouse location
         // framework.panel.set_default_foreground(LIGHT_GREY);
         // framework.panel.print_ex(1, 0, BackgroundFlag::None, TextAlignment::Left, get_names_under_mouse(framework.mouse, entities, &framework.fov));
-        let names_under_mouse = get_names_under_mouse(framework, entities);
-        framework.con.print_color(1, 0, LIGHT_GRAY, BLACK, names_under_mouse);
+        let names_under_mouse = get_names_under_mouse(framework, entities, camera);
+        framework.con.print_color(1, PANEL_Y+5, LIGHT_GRAY, BLACK, names_under_mouse);
+        framework.con.print_color(1, PANEL_Y+6, LIGHT_GRAY, BLACK, format!("({}, {})", framework.con.mouse_pos().0, framework.con.mouse_pos().1));
+        framework.con.print_color(1, PANEL_Y+7, LIGHT_GRAY, BLACK, format!("({}, {})", framework.con.width_pixels, framework.con.height_pixels));
         // display message log
-        let mut y = MSG_HEIGHT as i32;
+        let mut y = PANEL_Y + MSG_HEIGHT as i32;
         for &(ref msg, color) in messages.iter().rev() {     // iterate through the messages in reverse order
             // let msg_height = framework.panel.get_height_rect(MSG_X, y, MSG_WIDTH, 0, msg);
-            let msg_height = 1;
+            let split_msg = split_str(msg, MSG_WIDTH as usize - 3);
+            let msg_height = split_msg.len() as i32;
             y -= msg_height;
-            if y < 0 {
+            if y < PANEL_Y - 1 {
                 break;
             }
             // framework.panel.set_default_foreground(color);
             // framework.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
-            framework.con.draw_box(MSG_X, y, MSG_WIDTH, 0, color.to_rgba(), RGBA::from(BLACK));
-            framework.con.print_color(MSG_X, y, color.to_rgba(), RGBA::from(BLACK), msg);
+            for (i, line) in split_msg.iter().enumerate() {
+                framework.con.print_color(MSG_X, y + i as i32, color.to_rgba(), RGBA::from(BLACK), line);
+            }
         }
         // display game level
         framework.con.print(
             1,
-            3,
+            PANEL_Y + 3,
             format!("Level {}", dungeon_level)
         );
         // blit(

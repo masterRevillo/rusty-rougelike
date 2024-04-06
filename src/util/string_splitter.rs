@@ -10,5 +10,8 @@ pub fn split_str(s: &str, line_length: usize) -> Vec<String> {
             buf = String::new();
         }
     });
+    if !buf.is_empty() {
+        result.push(buf);
+    }
     result
 }

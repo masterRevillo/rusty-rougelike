@@ -12,8 +12,12 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn get_pos_in_camera(&mut self, x: i32, y: i32) -> (i32, i32) {
+    pub fn get_pos_in_camera(&self, x: i32, y: i32) -> (i32, i32) {
         (x + self.x, y + self.y)
+    }
+
+    pub fn get_map_pos(&self, x: i32, y: i32) -> (i32, i32) {
+        (x - self.x, y - self.y)
     }
 
     pub fn in_bounds(&self, x: i32, y: i32) -> bool {

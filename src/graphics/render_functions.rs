@@ -1,16 +1,18 @@
+use std::fmt::format;
 use bracket_lib::color::{BLACK, DARK_GOLDENROD, RGBA, WHITE};
 use bracket_lib::prelude::{BTerm, field_of_view, letter_to_option};
 use bracket_lib::terminal::Console;
 
 use crate::{Entity, GameFramework, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::game_engine::{GameEngine, LEVEL_SCREEN_WIDTH, PLAYER};
+use crate::graphics::camera::Camera;
 use crate::map::mapgen::{Map, MAP_HEIGHT, MAP_WIDTH};
 
 pub const INVENTORY_WIDTH: i32 = 50;
 
 
 pub const BAR_WIDTH: i32 = 20;
-pub const PANEL_HEIGHT: i32 = 7;
+pub const PANEL_HEIGHT: i32 = 10;
 pub const PANEL_Y: i32 = SCREEN_HEIGHT - PANEL_HEIGHT;
 
 pub const MSG_X: i32 = BAR_WIDTH + 2;
@@ -27,7 +29,6 @@ pub fn initialize_fov(framework: &mut GameFramework, map: &Map) {
                 !map.tiles[x][y].blocked,
             );
         }
-        // field_of_view()
     }
 }
 
@@ -60,12 +61,13 @@ pub fn msgbox(text: &str, width: i32, con: &mut BTerm) {
     menu(text, options, width, con);
 }
 
-pub fn get_names_under_mouse(game_framework: &mut GameFramework, objects: &[Entity]) -> String {
-    let (x, y) = game_framework.con.mouse_pos;
+pub fn get_names_under_mouse(game_framework: &mut GameFramework, objects: &[Entity], camera: &Camera) -> String {
+    let (x, y) = game_framework.con.mouse_pos();
+    let (x_map, y_map) = camera.get_map_pos(x, y);
     let names = objects
         .iter()
-        // .filter(|obj| obj.pos() == (x, y) && fov_map.is_in_fov(obj.x, obj.y))
-        .map(|obj| obj.name.clone())
+        .filter(|obj| obj.pos() == (x_map, y_map) && game_framework.fov.is_in_fov(obj.x, obj.y))
+        .map(|obj| format!("{} the {:?}", obj.name, obj.entity_type))
         .collect::<Vec<_>>();
 
     names.join(", ")
@@ -127,8 +129,8 @@ pub fn menu<T: AsRef<str>>(header: &str, options: &[T], width: i32, console: &mu
         console.print_color(0, 1 + index as i32, RGBA::from(WHITE), RGBA::from(BLACK), text.as_str());
     }
 
-    let x = SCREEN_WIDTH / 2 - width / 2;
-    let y = SCREEN_HEIGHT / 2 - height / 2;
+    // let x = SCREEN_WIDTH / 2 - width / 2;
+    // let y = SCREEN_HEIGHT / 2 - height / 2;
     // blit(&window, (0,0), (width, height), console, (x, y), 1.0, 0.7);
 
     // present the root console and wait for key

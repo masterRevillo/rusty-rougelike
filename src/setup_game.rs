@@ -1,3 +1,4 @@
+use crate::items::item::Item;
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fs::File;
@@ -9,11 +10,12 @@ use bracket_lib::prelude::BTerm;
 // use tcod::colors::{DARK_RED, RED, SKY, WHITE};
 
 use crate::{AudioEventProcessor, Camera, Entity, EventBus, EventLogProcessor, GameEngine, GameOccurrenceEventProcessor,  load_configs, make_map, MAP_HEIGHT, MAP_WIDTH, menu, Messages, msgbox, SCREEN_HEIGHT, SCREEN_WIDTH, GameFramework};
+use crate::entities::entity::EntityType;
+use crate::entities::entity::EntityType::{Player};
 use crate::entities::equipment::Equipment;
 use crate::entities::fighter::Fighter;
 use crate::entities::slot::Slot;
 use crate::game_engine::{GameState, PLAYER};
-use crate::items::item::Item;
 use crate::map::mapgen::Map;
 use crate::util::color::{BLUE, Color, RED, WHITE};
 use crate::util::death_callback::DeathCallback;
@@ -69,7 +71,7 @@ pub fn load_game() -> Result<GameEngine, Box<dyn Error>> {
 
 pub fn new_game() -> GameEngine {
     let config = load_configs();
-    let mut player = Entity::new(0, 0, '@', Color::from(WHITE), "player", true);
+    let mut player = Entity::new(0, 0, '@', Color::from(WHITE), "player", true, Player);
     player.alive = true;
     player.fighter = Some(Fighter {
         base_max_hp: 30,
@@ -117,7 +119,8 @@ pub fn new_game() -> GameEngine {
         '-',
         Color::from(BLUE),
         "dagger",
-        false
+        false,
+        EntityType::Item
     );
     dagger.item = Some(Item::Sword);
     dagger.equipment = Some(Equipment {

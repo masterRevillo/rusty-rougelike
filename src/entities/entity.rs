@@ -15,6 +15,18 @@ use crate::items::item::Item;
 use crate::util::ai::Ai;
 use crate::util::color::{BLACK, Color, LIGHT_GREEN, LIGHT_YELLOW, RED};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum EntityType {
+    Player,
+    Ogur,
+    Troll,
+    Skeleton,
+    Item,
+    Stairs,
+    Equipment,
+    Corpse,
+}
+
 /// This is a generic object: the player, a monster, an item, the stairs...
 /// It's always represented by a character on screen.
 #[derive(Debug, Serialize, Deserialize)]
@@ -33,10 +45,11 @@ pub struct Entity {
     pub level: i32,
     pub equipment: Option<Equipment>,
     pub inventory: Vec<Entity>,
+    pub entity_type: EntityType,
 }
 
 impl Entity {
-    pub fn new(x: i32, y: i32, char: char, color: Color, name: &str, blocks: bool) -> Self {
+    pub fn new(x: i32, y: i32, char: char, color: Color, name: &str, blocks: bool, entity_type: EntityType) -> Self {
         Entity {
             x,
             y,
@@ -51,7 +64,8 @@ impl Entity {
             always_visible: false,
             level: 1,
             equipment: None,
-            inventory: vec![]
+            inventory: vec![],
+            entity_type
         }
     }
 
